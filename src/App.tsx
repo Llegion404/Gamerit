@@ -11,6 +11,7 @@ import { useRoundManager } from "./hooks/useRoundManager";
 import { Loader2 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import Archaeology from "./components/Archaeology";
+import { ComingSoon } from "./components/ComingSoon";
 
 function App() {
   const { player, redditUser, loading: authLoading, login, logout, refreshPlayer, claimWelfareChips } = useAuth();
@@ -131,6 +132,8 @@ function App() {
         )}
 
         {activeGame === "archaeology" && <Archaeology />}
+
+        {activeGame === "coming-soon" && <ComingSoon />}
       </main>
 
       <footer className="border-t border-border bg-card/50 mt-8 sm:mt-16 py-6 sm:py-8">
