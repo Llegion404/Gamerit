@@ -136,13 +136,16 @@ function App() {
       <footer className="border-t border-border bg-card/50 mt-8 sm:mt-16 py-6 sm:py-8">
         <div className="container mx-auto px-4 text-center">
           <p className="text-muted-foreground text-sm sm:text-base">
-            Gamerit - Where Reddit posts battle for supremacy
+            Gamerit - The Ultimate Reddit Gaming Platform
           </p>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-2">🎰 Bet responsibly with Karma Chips! 🎰</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-2">
+            🎯 Battle • 📈 Trade • 🦴 Explore • 🏆 Compete
+          </p>
           <div className="mt-3 sm:mt-4 text-muted-foreground text-xs space-y-1">
-            <p>• Start with 1,000 free Karma Chips</p>
-            <p>• Win bets pay 2x your wager</p>
-            <p>• Claim 50 welfare chips daily when broke</p>
+            <p>• Reddit Battles: Bet on post performance and win big</p>
+            <p>• Meme Market: Trade trending keywords like stocks</p>
+            <p>• Archaeology: Discover the deepest comment chains</p>
+            <p>• Start with 1,000 free Karma Chips • Claim 50 welfare chips daily when broke</p>
           </div>
         </div>
       </footer>
