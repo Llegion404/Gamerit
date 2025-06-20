@@ -46,6 +46,7 @@ ALTER TABLE meme_stocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE player_portfolios ENABLE ROW LEVEL SECURITY;
 
 -- Policies for meme_stocks (public read access)
+DROP POLICY IF EXISTS "Anyone can read meme stocks" ON meme_stocks;
 CREATE POLICY "Anyone can read meme stocks"
   ON meme_stocks
   FOR SELECT
@@ -53,6 +54,7 @@ CREATE POLICY "Anyone can read meme stocks"
   USING (true);
 
 -- Policies for player_portfolios (public read access for transparency)
+DROP POLICY IF EXISTS "Anyone can read player portfolios" ON player_portfolios;
 CREATE POLICY "Anyone can read player portfolios"
   ON player_portfolios
   FOR SELECT
@@ -69,10 +71,12 @@ END;
 $$ language 'plpgsql';
 
 -- Triggers to auto-update updated_at
+DROP TRIGGER IF EXISTS update_meme_stocks_updated_at ON meme_stocks;
 CREATE TRIGGER update_meme_stocks_updated_at
   BEFORE UPDATE ON meme_stocks
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_player_portfolios_updated_at ON player_portfolios;
 CREATE TRIGGER update_player_portfolios_updated_at
   BEFORE UPDATE ON player_portfolios
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

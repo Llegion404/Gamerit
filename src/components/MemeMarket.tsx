@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { TrendingUp, TrendingDown, Minus, DollarSign, Briefcase, BarChart3, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, DollarSign, Briefcase, BarChart3, X, RefreshCw } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import toast from "react-hot-toast";
 
@@ -39,6 +39,7 @@ export function MemeMarket({ player, onRefreshPlayer }: MemeMarketProps) {
   const [stocks, setStocks] = useState<MemeStock[]>([]);
   const [portfolio, setPortfolio] = useState<PlayerPortfolio[]>([]);
   const [loading, setLoading] = useState(true);
+  const [marketUpdateLoading, setMarketUpdateLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"market" | "portfolio">("market");
   const [selectedStock, setSelectedStock] = useState<MemeStock | null>(null);
   const [buyAmount, setBuyAmount] = useState("");
@@ -213,6 +214,28 @@ export function MemeMarket({ player, onRefreshPlayer }: MemeMarketProps) {
     }
   };
 
+  // Update meme market data
+  const updateMarketData = async () => {
+    setMarketUpdateLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("update-meme-market");
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success("Market data updated successfully!");
+        await fetchStocks(); // Refresh stocks after update
+      } else {
+        throw new Error(data?.error || "Failed to update market");
+      }
+    } catch (error) {
+      console.error("Error updating market:", error);
+      toast.error("Failed to update market data");
+    } finally {
+      setMarketUpdateLoading(false);
+    }
+  };
+
   // Calculate portfolio total value
   const portfolioValue = portfolio.reduce((total, item) => {
     return total + item.shares_owned * item.meme_stocks.current_value;
@@ -256,28 +279,38 @@ export function MemeMarket({ player, onRefreshPlayer }: MemeMarketProps) {
       {/* Tabs */}
       <div className="bg-card rounded-lg border border-border shadow-sm">
         <div className="border-b border-border">
-          <nav className="flex space-x-8 px-6" aria-label="Tabs">
+          <div className="flex justify-between items-center px-6">
+            <nav className="flex space-x-8" aria-label="Tabs">
+              <button
+                onClick={() => setActiveTab("market")}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "market"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                Market
+              </button>
+              <button
+                onClick={() => setActiveTab("portfolio")}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "portfolio"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                My Portfolio
+              </button>
+            </nav>
             <button
-              onClick={() => setActiveTab("market")}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "market"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-              }`}
+              onClick={updateMarketData}
+              disabled={marketUpdateLoading}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Market
+              <RefreshCw className={`h-4 w-4 ${marketUpdateLoading ? "animate-spin" : ""}`} />
+              {marketUpdateLoading ? "Updating..." : "Update Market"}
             </button>
-            <button
-              onClick={() => setActiveTab("portfolio")}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "portfolio"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-              }`}
-            >
-              My Portfolio
-            </button>
-          </nav>
+          </div>
         </div>
 
         <div className="p-6">

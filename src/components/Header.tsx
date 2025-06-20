@@ -1,4 +1,17 @@
-import { Trophy, User, LogOut, Gift, Sun, Moon, Menu, X, Target, Zap, Gamepad2, TrendingUp } from "lucide-react";
+import {
+  Trophy,
+  User,
+  LogOut,
+  Gift,
+  Sun,
+  Moon,
+  Menu,
+  X,
+  Target,
+  TrendingUp,
+  Search,
+  SquareDashedBottomCode,
+} from "lucide-react";
 import { useState } from "react";
 import { Player } from "../lib/supabase";
 import { RedditUser } from "../lib/reddit-auth";
@@ -18,6 +31,8 @@ interface HeaderProps {
 const games = [
   { id: "reddit-battles", name: "Reddit Battles", icon: Target, active: true },
   { id: "meme-market", name: "Meme Market", icon: TrendingUp, active: true },
+  { id: "archaeology", name: "Archaeology", icon: Search, active: true },
+  { id: "coming-soon", name: "Coming soon", icon: SquareDashedBottomCode, active: false },
 ];
 
 export function Header({
@@ -205,24 +220,18 @@ export function Header({
               return (
                 <button
                   key={game.id}
-                  onClick={() => !game.comingSoon && onGameChange(game.id)}
+                  onClick={() => onGameChange(game.id)}
                   className={`
                     flex items-center space-x-2 px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap
                     ${
                       activeGame === game.id
                         ? "text-primary border-b-2 border-primary"
-                        : game.comingSoon
-                        ? "text-muted-foreground/50 cursor-not-allowed"
                         : "text-muted-foreground hover:text-foreground"
                     }
                   `}
-                  disabled={game.comingSoon}
                 >
                   <IconComponent className="w-4 h-4" />
                   <span>{game.name}</span>
-                  {game.comingSoon && (
-                    <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">Soon</span>
-                  )}
                 </button>
               );
             })}

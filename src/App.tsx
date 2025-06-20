@@ -10,6 +10,7 @@ import { useGameData } from "./hooks/useGameData";
 import { useRoundManager } from "./hooks/useRoundManager";
 import { Loader2 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import Archaeology from "./components/Archaeology";
 
 function App() {
   const { player, redditUser, loading: authLoading, login, logout, refreshPlayer, claimWelfareChips } = useAuth();
@@ -128,6 +129,8 @@ function App() {
             </div>
           </div>
         )}
+
+        {activeGame === "archaeology" && <Archaeology />}
       </main>
 
       <footer className="border-t border-border bg-card/50 mt-8 sm:mt-16 py-6 sm:py-8">

@@ -181,8 +181,7 @@ serve(async (req) => {
     // Filter for significant keywords (appeared in multiple posts)
     const significantKeywords = Array.from(keywordCounts.entries())
       .filter(([_, data]) => data.posts >= 2 && data.count >= 3)
-      .sort((a, b) => b[1].totalScore - a[1].totalScore)
-      .slice(0, 20); // Top 20 trending keywords
+      .sort((a, b) => b[1].totalScore - a[1].totalScore);
 
     console.log(`Found ${significantKeywords.length} significant keywords`);
 
@@ -193,74 +192,59 @@ serve(async (req) => {
       throw new Error(`Error fetching existing stocks: ${fetchError.message}`);
     }
 
-    const existingStocksMap = new Map(existingStocks.map((stock) => [stock.meme_keyword, stock]));
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    // Process each significant keyword
-    for (const [keyword, data] of significantKeywords) {
-      // Calculate value with scaled formula: ((Total Upvotes) + (Number of Posts * 10)) / 100
-      // This makes stocks more affordable for gameplay
-      const baseValue = data.totalScore + data.posts * 10;
-      const calculatedValue = Math.max(Math.floor(baseValue / 100), 10); // Minimum 10 chips
+    // Separate existing stocks into active (less than 1 week old) and expired (more than 1 week old)
+    const activeStocks = existingStocks.filter((stock) => stock.is_active && new Date(stock.created_at) > oneWeekAgo);
 
-      const existingStock = existingStocksMap.get(keyword);
+    const expiredStocks = existingStocks.filter((stock) => stock.is_active && new Date(stock.created_at) <= oneWeekAgo);
 
-      if (existingStock) {
-        // Update existing stock
-        const newHistory = [
-          ...(existingStock.history || []),
-          {
-            timestamp: new Date().toISOString(),
-            value: calculatedValue,
-          },
-        ];
+    console.log(`Active stocks (< 1 week): ${activeStocks.length}`);
+    console.log(`Expired stocks (≥ 1 week): ${expiredStocks.length}`);
 
-        // Keep only last 168 hours (7 days) of history
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        const filteredHistory = newHistory.filter((entry) => new Date(entry.timestamp) > weekAgo);
+    // Update values for existing active stocks (but don't change their active status)
+    const existingStocksMap = new Map(activeStocks.map((stock) => [stock.meme_keyword, stock]));
+
+    for (const stock of activeStocks) {
+      const keywordData = keywordCounts.get(stock.meme_keyword);
+
+      if (keywordData) {
+        // Calculate new value based on current trending data
+        const calculatedValue = Math.max(10, Math.floor((keywordData.totalScore + keywordData.posts * 10) / 100));
 
         const { error: updateError } = await supabase
           .from("meme_stocks")
           .update({
             current_value: calculatedValue,
-            is_active: true,
-            history: filteredHistory,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", existingStock.id);
+          .eq("id", stock.id);
 
         if (updateError) {
-          console.error(`Error updating stock ${keyword}:`, updateError);
+          console.error(`Error updating stock ${stock.meme_keyword}:`, updateError);
         } else {
-          console.log(`Updated ${keyword}: ${calculatedValue} (was ${existingStock.current_value})`);
+          console.log(`Updated active stock ${stock.meme_keyword}: ${stock.current_value} -> ${calculatedValue}`);
         }
       } else {
-        // Create new stock
-        const { error: insertError } = await supabase.from("meme_stocks").insert({
-          meme_keyword: keyword,
-          current_value: calculatedValue,
-          is_active: true,
-          history: [
-            {
-              timestamp: new Date().toISOString(),
-              value: calculatedValue,
-            },
-          ],
-        });
+        // Stock keyword not trending anymore, but keep it active until 1 week expires
+        // Just update the timestamp
+        const { error: updateError } = await supabase
+          .from("meme_stocks")
+          .update({
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", stock.id);
 
-        if (insertError) {
-          console.error(`Error creating stock ${keyword}:`, insertError);
+        if (updateError) {
+          console.error(`Error updating timestamp for ${stock.meme_keyword}:`, updateError);
         } else {
-          console.log(`Created new stock ${keyword}: ${calculatedValue}`);
+          console.log(`Keeping active stock ${stock.meme_keyword} (not currently trending but < 1 week old)`);
         }
       }
     }
 
-    // Deactivate stocks that are no longer trending
-    const activeKeywords = new Set(significantKeywords.map(([keyword]) => keyword));
-    const stocksToDeactivate = existingStocks.filter(
-      (stock) => stock.is_active && !activeKeywords.has(stock.meme_keyword)
-    );
-
+    // Deactivate expired stocks (older than 1 week)
+    const stocksToDeactivate = expiredStocks;
     for (const stock of stocksToDeactivate) {
       const { error: deactivateError } = await supabase
         .from("meme_stocks")
@@ -268,18 +252,61 @@ serve(async (req) => {
         .eq("id", stock.id);
 
       if (deactivateError) {
-        console.error(`Error deactivating stock ${stock.meme_keyword}:`, deactivateError);
+        console.error(`Error deactivating expired stock ${stock.meme_keyword}:`, deactivateError);
       } else {
-        console.log(`Deactivated stock: ${stock.meme_keyword}`);
+        console.log(`Deactivated expired stock: ${stock.meme_keyword} (created ${stock.created_at})`);
       }
+    }
+
+    // Add new stocks from trending keywords (only if we have space)
+    const currentActiveCount = activeStocks.length - stocksToDeactivate.length; // Active stocks after deactivation
+    const slotsAvailable = Math.max(0, 10 - currentActiveCount); // Target 10 active stocks
+
+    if (slotsAvailable > 0) {
+      // Find new keywords that aren't already active stocks
+      const activeKeywords = new Set(activeStocks.map((stock) => stock.meme_keyword));
+      const newKeywords = significantKeywords
+        .filter(([keyword, _]) => !activeKeywords.has(keyword))
+        .slice(0, slotsAvailable);
+
+      console.log(`Adding ${newKeywords.length} new stocks (${slotsAvailable} slots available)`);
+
+      for (const [keyword, data] of newKeywords) {
+        const calculatedValue = Math.max(10, Math.floor((data.totalScore + data.posts * 10) / 100));
+
+        const { error: insertError } = await supabase.from("meme_stocks").insert({
+          meme_keyword: keyword,
+          current_value: calculatedValue,
+          is_active: true,
+          history: [{ timestamp: new Date().toISOString(), value: calculatedValue }],
+        });
+
+        if (insertError) {
+          console.error(`Error creating new stock ${keyword}:`, insertError);
+        } else {
+          console.log(`Created new stock ${keyword}: ${calculatedValue}`);
+        }
+      }
+    } else {
+      console.log(`No slots available for new stocks (${currentActiveCount}/10 active)`);
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         message: "Meme market updated successfully",
-        processed_keywords: significantKeywords.length,
-        deactivated_stocks: stocksToDeactivate.length,
+        active_stocks_before: activeStocks.length,
+        expired_stocks_deactivated: stocksToDeactivate.length,
+        new_stocks_added:
+          slotsAvailable > 0
+            ? Math.min(
+                slotsAvailable,
+                significantKeywords.filter(
+                  ([keyword, _]) => !new Set(activeStocks.map((s) => s.meme_keyword)).has(keyword)
+                ).length
+              )
+            : 0,
+        total_trending_keywords: significantKeywords.length,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
