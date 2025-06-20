@@ -84,67 +84,6 @@ export function ComingSoon() {
         })}
       </div>
 
-      {/* Timeline Section */}
-      <div className="bg-card border border-border rounded-xl p-8 space-y-6">
-        <div className="text-center">
-          <Clock className="w-8 h-8 mx-auto text-primary mb-3" />
-          <h2 className="text-2xl font-bold mb-2">Development Roadmap</h2>
-          <p className="text-muted-foreground">Track our progress as we build the future of Reddit gaming</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-8">
-          <div className="text-center space-y-3">
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto">
-              <Star className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-            <h3 className="font-semibold">Phase 1: Core Features</h3>
-            <p className="text-sm text-muted-foreground">Reddit Battles, Meme Market, Archaeology</p>
-            <span className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
-              ✓ Complete
-            </span>
-          </div>
-
-          <div className="text-center space-y-3">
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto">
-              <Target className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <h3 className="font-semibold">Phase 2: New Games</h3>
-            <p className="text-sm text-muted-foreground">Geoguessr, Dictionary, More</p>
-            <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium">
-              🚧 In Progress
-            </span>
-          </div>
-
-          <div className="text-center space-y-3">
-            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto">
-              <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            </div>
-            <h3 className="font-semibold">Phase 3: Community</h3>
-            <p className="text-sm text-muted-foreground">Social Features, Competitions</p>
-            <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium">
-              🔮 Planned
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Call to Action */}
-      <div className="text-center bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-xl p-8 border border-primary/20">
-        <h3 className="text-xl font-bold mb-3">Want to be notified when new features launch?</h3>
-        <p className="text-muted-foreground mb-6">
-          Join our community and be the first to experience cutting-edge Reddit gaming features.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <div className="flex items-center space-x-2 text-primary">
-            <Users className="w-5 h-5" />
-            <span className="font-medium">Join the community on Reddit</span>
-          </div>
-          <div className="flex items-center space-x-2 text-primary">
-            <Star className="w-5 h-5" />
-            <span className="font-medium">Follow development updates</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
