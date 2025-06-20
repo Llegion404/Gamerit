@@ -3,37 +3,19 @@ import { Rocket, Sparkles, Zap, Users, Trophy, Target, Clock, Star } from "lucid
 export function ComingSoon() {
   const upcomingFeatures = [
     {
-      icon: Users,
-      title: "Guild Wars",
-      description: "Form teams and compete in epic Reddit battles",
-      status: "In Development",
-      color: "text-blue-500",
-      bgColor: "bg-blue-50 dark:bg-blue-950",
-      borderColor: "border-blue-200 dark:border-blue-800",
-    },
-    {
-      icon: Trophy,
-      title: "Tournament Mode",
-      description: "Bracket-style competitions with massive prize pools",
-      status: "Coming Q2",
-      color: "text-yellow-500",
-      bgColor: "bg-yellow-50 dark:bg-yellow-950",
-      borderColor: "border-yellow-200 dark:border-yellow-800",
-    },
-    {
       icon: Target,
-      title: "Prediction Markets",
-      description: "Bet on real-world events using Reddit sentiment",
-      status: "Research Phase",
+      title: "Reddit Geoguessr",
+      description: "Detective game: guess where Reddit photos were taken",
+      status: "Coming Soon",
       color: "text-green-500",
       bgColor: "bg-green-50 dark:bg-green-950",
       borderColor: "border-green-200 dark:border-green-800",
     },
     {
-      icon: Zap,
-      title: "Live Events",
-      description: "Real-time betting during breaking news and AMAs",
-      status: "Prototype",
+      icon: Users,
+      title: "The Hivemind's Dictionary",
+      description: "Weekly competition to define made-up words together",
+      status: "Coming Soon",
       color: "text-purple-500",
       bgColor: "bg-purple-50 dark:bg-purple-950",
       borderColor: "border-purple-200 dark:border-purple-800",
@@ -124,10 +106,10 @@ export function ComingSoon() {
 
           <div className="text-center space-y-3">
             <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto">
-              <Zap className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <Target className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
-            <h3 className="font-semibold">Phase 2: Social Features</h3>
-            <p className="text-sm text-muted-foreground">Guilds, Tournaments, Live Events</p>
+            <h3 className="font-semibold">Phase 2: New Games</h3>
+            <p className="text-sm text-muted-foreground">Geoguessr, Dictionary, More</p>
             <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium">
               🚧 In Progress
             </span>
@@ -135,10 +117,10 @@ export function ComingSoon() {
 
           <div className="text-center space-y-3">
             <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto">
-              <Rocket className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             </div>
-            <h3 className="font-semibold">Phase 3: Advanced AI</h3>
-            <p className="text-sm text-muted-foreground">Prediction Markets, Smart Analytics</p>
+            <h3 className="font-semibold">Phase 3: Community</h3>
+            <p className="text-sm text-muted-foreground">Social Features, Competitions</p>
             <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium">
               🔮 Planned
             </span>
