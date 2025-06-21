@@ -20,6 +20,15 @@ export function ComingSoon() {
       bgColor: "bg-purple-50 dark:bg-purple-950",
       borderColor: "border-purple-200 dark:border-purple-800",
     },
+    {
+      icon: Zap,
+      title: "Reddit Radio",
+      description: "AI-voiced radio station from your favorite subreddits",
+      status: "Coming Soon",
+      color: "text-blue-500",
+      bgColor: "bg-blue-50 dark:bg-blue-950",
+      borderColor: "border-blue-200 dark:border-blue-800",
+    },
   ];
 
   return (
