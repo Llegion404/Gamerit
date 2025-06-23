@@ -5,6 +5,7 @@ import { MemeMarket } from "./components/MemeMarket";
 import { Leaderboard } from "./components/Leaderboard";
 import { PreviousRounds } from "./components/PreviousRounds";
 import { AdminPanel } from "./components/AdminPanel";
+import { ProductivityParadox } from "./components/ProductivityParadox";
 import { useAuth } from "./hooks/useAuth";
 import { useGameData } from "./hooks/useGameData";
 import { useRoundManager } from "./hooks/useRoundManager";
@@ -133,14 +134,25 @@ function App() {
 
         {activeGame === "archaeology" && <Archaeology />}
 
+        {activeGame === "productivity-paradox" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="lg:col-span-2">
+              <ProductivityParadox player={player} onRefreshPlayer={refreshPlayer} />
+            </div>
+            <div className="space-y-4 sm:space-y-6 order-first lg:order-last">
+              <Leaderboard players={leaderboard} showMetaMinutes={true} />
+              {/* Admin Panel - only show if user is logged in */}
+              {redditUser && <AdminPanel />}
+            </div>
+          </div>
+        )}
+
         {activeGame === "coming-soon" && <ComingSoon />}
       </main>
 
       <footer className="border-t border-border bg-card/50 mt-8 sm:mt-16 py-6 sm:py-8">
         <div className="container mx-auto px-4 text-center">
-          <p className="text-muted-foreground text-sm sm:text-base">
-            Gamerit - The Ultimate Reddit Gaming Platform
-          </p>
+          <p className="text-muted-foreground text-sm sm:text-base">Gamerit - The Ultimate Reddit Gaming Platform</p>
           <p className="text-xs sm:text-sm text-muted-foreground mt-2">
             🎯 Battle • 📈 Trade • 🦴 Explore • 🏆 Compete
           </p>

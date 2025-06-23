@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Search,
   SquareDashedBottomCode,
+  Timer,
 } from "lucide-react";
 import { useState } from "react";
 import { Player } from "../lib/supabase";
@@ -32,6 +33,7 @@ const games = [
   { id: "reddit-battles", name: "Reddit Battles", icon: Target, active: true },
   { id: "meme-market", name: "Meme Market", icon: TrendingUp, active: true },
   { id: "archaeology", name: "Archaeology", icon: Search, active: true },
+  { id: "productivity-paradox", name: "Productivity Paradox", icon: Timer, active: true },
   { id: "coming-soon", name: "Coming soon", icon: SquareDashedBottomCode, active: false },
 ];
 

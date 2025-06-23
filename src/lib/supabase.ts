@@ -32,6 +32,7 @@ export type Player = {
   id: string;
   reddit_username: string;
   points: number;
+  meta_minutes: number;
   created_at: string;
 };
 
