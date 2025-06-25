@@ -1,18 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { 
-  Play, 
-  Pause, 
-  SkipForward, 
-  Volume2, 
-  VolumeX, 
-  Settings, 
-  Plus, 
-  X, 
-  Radio,
-  Loader2,
-  Clock,
-  Users
-} from "lucide-react";
+import { Play, Pause, SkipForward, Volume2, VolumeX, Plus, X, Radio, Loader2, Clock, Users } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import toast from "react-hot-toast";
@@ -28,7 +15,7 @@ interface RadioStation {
 
 interface RadioContent {
   id: string;
-  type: 'post' | 'comment';
+  type: "post" | "comment";
   title?: string;
   text: string;
   author: string;
@@ -43,6 +30,28 @@ interface PlaybackState {
   queue: RadioContent[];
   volume: number;
   isMuted: boolean;
+}
+
+interface SubredditSuggestion {
+  name: string;
+  title: string;
+  description: string;
+  subscribers: number;
+  over18: boolean;
+}
+
+interface Voice {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  labels?: {
+    gender?: string;
+    age?: string;
+    accent?: string;
+    [key: string]: string | undefined;
+  };
+  preview_url?: string;
 }
 
 export function RedditRadio() {
@@ -62,32 +71,12 @@ export function RedditRadio() {
   const [newStationSubreddits, setNewStationSubreddits] = useState<string[]>([]);
   const [subredditInput, setSubredditInput] = useState("");
   const [selectedVoice, setSelectedVoice] = useState("21m00Tcm4TlvDq8ikWAM"); // Default Rachel voice
-  const [subredditSuggestions, setSubredditSuggestions] = useState<string[]>([]);
+  const [subredditSuggestions, setSubredditSuggestions] = useState<SubredditSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-
-  // Available ElevenLabs voices
-  const availableVoices = [
-    { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", description: "Calm, friendly female voice" },
-    { id: "AZnzlk1XvdvUeBnXmlld", name: "Domi", description: "Strong, confident female voice" },
-    { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella", description: "Sweet, young female voice" },
-    { id: "ErXwobaYiN019PkySvjV", name: "Antoni", description: "Well-rounded male voice" },
-    { id: "VR6AewLTigWG4xSOukaG", name: "Arnold", description: "Crisp, authoritative male voice" },
-    { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", description: "Deep, mature male voice" },
-    { id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam", description: "Casual, friendly male voice" },
-  ];
-
-  // Popular subreddits for autocomplete
-  const popularSubreddits = [
-    "AskReddit", "funny", "todayilearned", "explainlikeimfive", "mildlyinteresting",
-    "Showerthoughts", "LifeProTips", "unpopularopinion", "changemyview", "mildlyinfuriating",
-    "coolguides", "dataisbeautiful", "science", "technology", "worldnews",
-    "news", "politics", "gaming", "movies", "music", "books", "food",
-    "cooking", "fitness", "personalfinance", "relationship_advice", "AmItheAsshole",
-    "tifu", "confession", "NoStupidQuestions", "OutOfTheLoop", "YouShouldKnow",
-    "wholesomememes", "dankmemes", "memes", "aww", "cats", "dogs", "nature",
-    "EarthPorn", "space", "futurology", "philosophy", "history", "DIY",
-    "programming", "webdev", "MachineLearning", "artificial", "cryptocurrency"
-  ];
+  const [availableVoices, setAvailableVoices] = useState<Voice[]>([]);
+  const [loadingVoices, setLoadingVoices] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -110,9 +99,96 @@ export function RedditRadio() {
     }
   }, [player]);
 
+  // Load available voices from ElevenLabs
+  const loadVoices = useCallback(async () => {
+    if (loadingVoices || availableVoices.length > 0) return;
+
+    setLoadingVoices(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-voices");
+
+      if (error) throw error;
+
+      if (data?.voices) {
+        setAvailableVoices(data.voices);
+      }
+    } catch (error) {
+      console.error("Error loading voices:", error);
+      // Fallback to default voices if API fails
+      setAvailableVoices([
+        { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", description: "Calm, friendly female voice", category: "premade" },
+        {
+          id: "AZnzlk1XvdvUeBnXmlld",
+          name: "Domi",
+          description: "Strong, confident female voice",
+          category: "premade",
+        },
+        { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella", description: "Sweet, young female voice", category: "premade" },
+        { id: "ErXwobaYiN019PkySvjV", name: "Antoni", description: "Well-rounded male voice", category: "premade" },
+        {
+          id: "VR6AewLTigWG4xSOukaG",
+          name: "Arnold",
+          description: "Crisp, authoritative male voice",
+          category: "premade",
+        },
+        { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", description: "Deep, mature male voice", category: "premade" },
+        { id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam", description: "Casual, friendly male voice", category: "premade" },
+      ]);
+    } finally {
+      setLoadingVoices(false);
+    }
+  }, [loadingVoices, availableVoices.length]);
+
+  // Search subreddits from Reddit API
+  const searchSubreddits = useCallback(
+    async (query: string) => {
+      if (!query.trim() || query.trim().length < 2) {
+        setSubredditSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      setLoadingSuggestions(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("search-subreddits", {
+          body: { query: query.trim(), limit: 8 },
+        });
+
+        if (error) throw error;
+
+        if (data?.subreddits) {
+          // Filter out already added subreddits
+          const filtered = data.subreddits.filter(
+            (sub: SubredditSuggestion) => !newStationSubreddits.includes(sub.name.toLowerCase())
+          );
+          setSubredditSuggestions(filtered);
+          setShowSuggestions(filtered.length > 0);
+        }
+      } catch (error) {
+        console.error("Error searching subreddits:", error);
+        setSubredditSuggestions([]);
+        setShowSuggestions(false);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    },
+    [newStationSubreddits]
+  );
+
+  // Debounce search to avoid too many API calls
+  const debouncedSearchSubreddits = (query: string) => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      searchSubreddits(query);
+    }, 300);
+  };
+
   useEffect(() => {
     loadStations();
-  }, [loadStations]);
+    loadVoices();
+  }, [loadStations, loadVoices]);
 
   // Create new radio station
   const createStation = async () => {
@@ -135,7 +211,7 @@ export function RedditRadio() {
 
       if (error) throw error;
 
-      setStations(prev => [data, ...prev]);
+      setStations((prev) => [data, ...prev]);
       setNewStationName("");
       setNewStationSubreddits([]);
       setSelectedVoice("21m00Tcm4TlvDq8ikWAM");
@@ -151,7 +227,7 @@ export function RedditRadio() {
   const addSubreddit = () => {
     const subreddit = subredditInput.trim().toLowerCase().replace(/^r\//, "");
     if (subreddit && !newStationSubreddits.includes(subreddit)) {
-      setNewStationSubreddits(prev => [...prev, subreddit]);
+      setNewStationSubreddits((prev) => [...prev, subreddit]);
       setSubredditInput("");
       setShowSuggestions(false);
     }
@@ -159,34 +235,22 @@ export function RedditRadio() {
 
   // Remove subreddit from new station
   const removeSubreddit = (subreddit: string) => {
-    setNewStationSubreddits(prev => prev.filter(s => s !== subreddit));
+    setNewStationSubreddits((prev) => prev.filter((s) => s !== subreddit));
   };
 
   // Handle subreddit input change with autocomplete
   const handleSubredditInputChange = (value: string) => {
     setSubredditInput(value);
-    
-    if (value.trim().length > 0) {
-      const filtered = popularSubreddits
-        .filter(sub => 
-          sub.toLowerCase().includes(value.toLowerCase()) && 
-          !newStationSubreddits.includes(sub.toLowerCase())
-        )
-        .slice(0, 5);
-      setSubredditSuggestions(filtered);
-      setShowSuggestions(filtered.length > 0);
-    } else {
-      setShowSuggestions(false);
-    }
+    debouncedSearchSubreddits(value);
   };
 
   // Select suggestion
-  const selectSuggestion = (subreddit: string) => {
-    setSubredditInput(subreddit);
+  const selectSuggestion = (subreddit: SubredditSuggestion) => {
+    setSubredditInput(subreddit.name);
     setShowSuggestions(false);
     // Auto-add the subreddit
-    if (!newStationSubreddits.includes(subreddit.toLowerCase())) {
-      setNewStationSubreddits(prev => [...prev, subreddit.toLowerCase()]);
+    if (!newStationSubreddits.includes(subreddit.name.toLowerCase())) {
+      setNewStationSubreddits((prev) => [...prev, subreddit.name.toLowerCase()]);
       setSubredditInput("");
     }
   };
@@ -208,7 +272,7 @@ export function RedditRadio() {
       if (error) throw error;
 
       if (data?.content && data.content.length > 0) {
-        setPlaybackState(prev => ({
+        setPlaybackState((prev) => ({
           ...prev,
           queue: data.content,
           currentContent: data.content[0],
@@ -241,16 +305,16 @@ export function RedditRadio() {
       if (error) throw error;
 
       if (data?.audio_url) {
-        setPlaybackState(prev => ({
+        setPlaybackState((prev) => ({
           ...prev,
           currentContent: { ...content, audio_url: data.audio_url },
         }));
-        
+
         // Start playing the audio
         if (audioRef.current) {
           audioRef.current.src = data.audio_url;
           audioRef.current.play();
-          setPlaybackState(prev => ({ ...prev, isPlaying: true }));
+          setPlaybackState((prev) => ({ ...prev, isPlaying: true }));
         }
       }
     } catch (error) {
@@ -265,27 +329,25 @@ export function RedditRadio() {
 
     if (playbackState.isPlaying) {
       audioRef.current.pause();
-      setPlaybackState(prev => ({ ...prev, isPlaying: false }));
+      setPlaybackState((prev) => ({ ...prev, isPlaying: false }));
     } else {
       audioRef.current.play();
-      setPlaybackState(prev => ({ ...prev, isPlaying: true }));
+      setPlaybackState((prev) => ({ ...prev, isPlaying: true }));
     }
   };
 
   // Skip to next content
   const skipToNext = async () => {
-    const currentIndex = playbackState.queue.findIndex(
-      item => item.id === playbackState.currentContent?.id
-    );
-    
+    const currentIndex = playbackState.queue.findIndex((item) => item.id === playbackState.currentContent?.id);
+
     if (currentIndex < playbackState.queue.length - 1) {
       const nextContent = playbackState.queue[currentIndex + 1];
-      setPlaybackState(prev => ({ ...prev, currentContent: nextContent }));
+      setPlaybackState((prev) => ({ ...prev, currentContent: nextContent }));
       await generateAudio(nextContent);
     } else {
       // End of queue - could fetch more content here
-      toast.info("End of queue reached");
-      setPlaybackState(prev => ({ ...prev, isPlaying: false }));
+      toast("End of queue reached");
+      setPlaybackState((prev) => ({ ...prev, isPlaying: false }));
     }
   };
 
@@ -293,7 +355,7 @@ export function RedditRadio() {
   const toggleMute = () => {
     if (audioRef.current) {
       audioRef.current.muted = !playbackState.isMuted;
-      setPlaybackState(prev => ({ ...prev, isMuted: !prev.isMuted }));
+      setPlaybackState((prev) => ({ ...prev, isMuted: !prev.isMuted }));
     }
   };
 
@@ -301,7 +363,7 @@ export function RedditRadio() {
     const volume = parseFloat(e.target.value);
     if (audioRef.current) {
       audioRef.current.volume = volume;
-      setPlaybackState(prev => ({ ...prev, volume }));
+      setPlaybackState((prev) => ({ ...prev, volume }));
     }
   };
 
@@ -351,7 +413,7 @@ export function RedditRadio() {
             <div>
               <h3 className="text-lg font-semibold">Now Playing: {activeStation.name}</h3>
               <p className="text-sm text-muted-foreground">
-                {activeStation.subreddits.map(s => `r/${s}`).join(", ")}
+                {activeStation.subreddits.map((s) => `r/${s}`).join(", ")}
               </p>
             </div>
             {loading && <Loader2 className="w-5 h-5 animate-spin text-primary" />}
@@ -372,9 +434,7 @@ export function RedditRadio() {
                   {playbackState.currentContent.title && (
                     <h4 className="font-medium mb-2">{playbackState.currentContent.title}</h4>
                   )}
-                  <p className="text-sm text-muted-foreground line-clamp-3">
-                    {playbackState.currentContent.text}
-                  </p>
+                  <p className="text-sm text-muted-foreground line-clamp-3">{playbackState.currentContent.text}</p>
                 </div>
               </div>
             </div>
@@ -413,16 +473,14 @@ export function RedditRadio() {
               />
             </div>
 
-            <div className="ml-auto text-sm text-muted-foreground">
-              Queue: {playbackState.queue.length} items
-            </div>
+            <div className="ml-auto text-sm text-muted-foreground">Queue: {playbackState.queue.length} items</div>
           </div>
 
           <audio
             ref={audioRef}
             onEnded={handleAudioEnded}
-            onPlay={() => setPlaybackState(prev => ({ ...prev, isPlaying: true }))}
-            onPause={() => setPlaybackState(prev => ({ ...prev, isPlaying: false }))}
+            onPlay={() => setPlaybackState((prev) => ({ ...prev, isPlaying: true }))}
+            onPause={() => setPlaybackState((prev) => ({ ...prev, isPlaying: false }))}
             className="hidden"
           />
         </div>
@@ -431,7 +489,7 @@ export function RedditRadio() {
       {/* Stations List */}
       <div className="bg-card rounded-lg border p-6">
         <h2 className="text-xl font-semibold mb-4">Your Radio Stations</h2>
-        
+
         {stations.length === 0 ? (
           <div className="text-center py-8">
             <Radio className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -472,9 +530,7 @@ export function RedditRadio() {
                     </div>
                   ))}
                   {station.subreddits.length > 3 && (
-                    <div className="text-xs text-muted-foreground">
-                      +{station.subreddits.length - 3} more
-                    </div>
+                    <div className="text-xs text-muted-foreground">+{station.subreddits.length - 3} more</div>
                   )}
                 </div>
                 <div className="mt-3 text-xs text-muted-foreground flex items-center gap-1">
@@ -518,14 +574,25 @@ export function RedditRadio() {
                 <select
                   value={selectedVoice}
                   onChange={(e) => setSelectedVoice(e.target.value)}
-                  className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  disabled={loadingVoices}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background disabled:opacity-50"
                 >
-                  {availableVoices.map((voice) => (
-                    <option key={voice.id} value={voice.id}>
-                      {voice.name} - {voice.description}
-                    </option>
-                  ))}
+                  {loadingVoices ? (
+                    <option>Loading voices...</option>
+                  ) : (
+                    availableVoices.map((voice) => (
+                      <option key={voice.id} value={voice.id}>
+                        {voice.name} - {voice.description}
+                      </option>
+                    ))
+                  )}
                 </select>
+                {loadingVoices && (
+                  <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Loading available voices...
+                  </div>
+                )}
               </div>
 
               <div>
@@ -555,19 +622,38 @@ export function RedditRadio() {
                         placeholder="todayilearned"
                         className="w-full px-3 py-2 border border-input rounded-md bg-background"
                       />
-                      
+
                       {/* Autocomplete suggestions */}
                       {showSuggestions && subredditSuggestions.length > 0 && (
                         <div className="absolute top-full left-0 right-0 z-10 bg-card border border-border rounded-md shadow-lg mt-1 max-h-40 overflow-y-auto">
                           {subredditSuggestions.map((suggestion) => (
                             <button
-                              key={suggestion}
+                              key={suggestion.name}
                               onClick={() => selectSuggestion(suggestion)}
                               className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground text-sm border-b border-border last:border-b-0"
                             >
-                              r/{suggestion}
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium">r/{suggestion.name}</div>
+                                  {suggestion.title && (
+                                    <div className="text-xs text-muted-foreground truncate">{suggestion.title}</div>
+                                  )}
+                                </div>
+                                {suggestion.subscribers > 0 && (
+                                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <Users className="w-3 h-3" />
+                                    {suggestion.subscribers.toLocaleString()}
+                                  </div>
+                                )}
+                              </div>
                             </button>
                           ))}
+                          {loadingSuggestions && (
+                            <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Searching...
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -579,7 +665,7 @@ export function RedditRadio() {
                     </button>
                   </div>
                 </div>
-                
+
                 {newStationSubreddits.length > 0 && (
                   <div className="space-y-1">
                     {newStationSubreddits.map((subreddit) => (
@@ -623,4 +709,4 @@ export function RedditRadio() {
   );
 }
 
-export default RedditRadio
+export default RedditRadio;
