@@ -20,6 +20,7 @@ interface MultiBattleProps {
 
 export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBets, refreshData }: MultiBattleProps) {
   const [activeTab, setActiveTab] = useState(0);
+  const [lastActiveRoundId, setLastActiveRoundId] = useState<string | null>(null);
 
   if (!rounds || rounds.length === 0) {
     return (
@@ -29,6 +30,15 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
       </div>
     );
   }
+
+  // Update last active round ID when switching tabs
+  const handleTabChange = (newTab: number) => {
+    const newRoundId = rounds[newTab]?.id;
+    if (newRoundId !== lastActiveRoundId) {
+      setLastActiveRoundId(newRoundId);
+    }
+    setActiveTab(newTab);
+  };
 
   const formatRoundTime = (timestamp: string) => {
     const now = new Date();
@@ -54,7 +64,7 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
                     ? "bg-primary/10 border-primary text-primary"
                     : "bg-background border-border hover:border-primary/50"
                 }`}
-                onClick={() => setActiveTab(index)}
+                onClick={() => handleTabChange(index)}
               >
                 <div className="font-medium">#{index + 1}</div>
                 <div className="truncate">{round.post_a_subreddit}</div>

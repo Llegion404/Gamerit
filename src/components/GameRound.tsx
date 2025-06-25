@@ -34,22 +34,27 @@ interface GameRoundProps {
 export function GameRound({ round, player, redditUser, onPlaceBet, getUserBets, refreshData }: GameRoundProps) {
   const [selectedPost, setSelectedPost] = useState<"A" | "B" | null>(null);
   const [existingBet, setExistingBet] = useState<UserBet | null>(null);
-  const [isLoadingBets, setIsLoadingBets] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [currentRoundId, setCurrentRoundId] = useState<string | null>(null);
 
   // Use the score updater hook to update scores every minute
   useScoreUpdater(round?.id, refreshData);
 
-  // Reset states when round changes
+  // Detect round changes and reset states
   useEffect(() => {
+    if (round?.id !== currentRoundId) {
+      // This is a new round or initial load
+      setIsInitialLoad(true);
+      setCurrentRoundId(round?.id || null);
+    }
+    
     setSelectedPost(null);
     setExistingBet(null);
-    setIsLoadingBets(true); // Start loading when round changes
   }, [round?.id]);
 
   useEffect(() => {
     const checkExistingBet = async () => {
       if (player && round) {
-        setIsLoadingBets(true);
         try {
           const bets = await getUserBets(player.id, round.id);
           if (bets.length > 0) {
@@ -63,17 +68,22 @@ export function GameRound({ round, player, redditUser, onPlaceBet, getUserBets, 
           // Reset on error as well
           setExistingBet(null);
         } finally {
-          setIsLoadingBets(false);
+          // Only set initial load to false after the first bet check completes
+          if (isInitialLoad) {
+            setIsInitialLoad(false);
+          }
         }
       } else {
         // Reset if no player or round
         setExistingBet(null);
-        setIsLoadingBets(false);
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
       }
     };
 
     checkExistingBet();
-  }, [player, round, getUserBets]); // Include full round object
+  }, [player, round, getUserBets, isInitialLoad]);
 
   const PostCard = ({
     post,
@@ -286,7 +296,7 @@ export function GameRound({ round, player, redditUser, onPlaceBet, getUserBets, 
   };
 
   // Show loading skeleton while checking for existing bets
-  if (isLoadingBets) {
+  if (isInitialLoad) {
     return <BattleLoadingSkeleton />;
   }
 
