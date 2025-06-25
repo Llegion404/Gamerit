@@ -17,6 +17,7 @@ import { useState } from "react";
 import { Player } from "../lib/supabase";
 import { RedditUser } from "../lib/reddit-auth";
 import { useTheme } from "../hooks/useTheme";
+import ProgressionSystem from "./ProgressionSystem";
 
 interface HeaderProps {
   player: Player | null;
@@ -35,6 +36,7 @@ const games = [
   { id: "archaeology", name: "Archaeology", icon: Search, active: true },
   { id: "productivity-paradox", name: "Productivity Paradox", icon: Timer, active: true },
   { id: "reddit-radio", name: "Reddit Radio", icon: SquareDashedBottomCode, active: true },
+  { id: "progression", name: "Progression", icon: Trophy, active: true },
   { id: "coming-soon", name: "Coming soon", icon: SquareDashedBottomCode, active: false },
 ];
 
@@ -81,6 +83,9 @@ export function Header({
 
               {player && redditUser ? (
                 <>
+                  {/* Progression Display (Compact) */}
+                  <ProgressionSystem redditUsername={redditUser.name} compact={true} className="hidden lg:flex" />
+
                   <div className="bg-secondary border border-border rounded-lg px-3 py-1.5">
                     <div className="flex items-center space-x-2">
                       <Trophy className="w-4 h-4 text-primary" />

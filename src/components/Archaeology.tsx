@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
+import { useProgression } from "../hooks/useProgression";
 import { RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -23,6 +24,7 @@ interface Submission {
 
 export default function Archaeology() {
   const { player, redditUser } = useAuth();
+  const { awardXP } = useProgression(redditUser?.name || null);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [submissions, setSubmissions] = useState<Record<string, Submission | null>>({});
   const [leaderboards, setLeaderboards] = useState<Record<string, Submission[]>>({});
@@ -87,10 +89,28 @@ export default function Archaeology() {
       } else {
         setStatus((prev) => ({
           ...prev,
-          [challengeId]: `Success! Chain length: ${data.chain_length}, Prize: ${data.prize} Karma Chips`,
+          [challengeId]: `Success! Chain length: ${data.chain_length}, Prize: ${data.prize} Karma Chips (+${Math.floor(
+            data.chain_length / 2
+          )} XP)`,
         }));
         fetchLeaderboard(challengeId);
         fetchPersonalBest(challengeId);
+
+        // Award XP based on chain length found
+        if (redditUser?.name) {
+          try {
+            const xpAmount = Math.max(5, Math.floor(data.chain_length / 2)); // Minimum 5 XP, bonus for longer chains
+            await awardXP(xpAmount, "Discovered comment chain in Archaeology", {
+              challengeId,
+              chainLength: data.chain_length,
+              prize: data.prize,
+              commentUrl: comment_url,
+              timestamp: new Date().toISOString(),
+            });
+          } catch (xpError) {
+            console.error("Failed to award XP for archaeology submission:", xpError);
+          }
+        }
       }
     } catch {
       setStatus((prev) => ({ ...prev, [challengeId]: `Error: Failed to connect to server` }));

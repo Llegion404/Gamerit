@@ -6,9 +6,12 @@ import { Leaderboard } from "./components/Leaderboard";
 import { PreviousRounds } from "./components/PreviousRounds";
 import { AdminPanel } from "./components/AdminPanel";
 import { ProductivityParadox } from "./components/ProductivityParadox";
+import ProgressionSystem from "./components/ProgressionSystem";
+import AchievementNotification from "./components/AchievementNotification";
 import { useAuth } from "./hooks/useAuth";
 import { useGameData } from "./hooks/useGameData";
 import { useRoundManager } from "./hooks/useRoundManager";
+import { useProgression } from "./hooks/useProgression";
 import { Loader2 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import Archaeology from "./components/Archaeology";
@@ -26,8 +29,10 @@ function App() {
     getUserBets,
     refreshData,
   } = useGameData();
+  const { awardXP } = useProgression(redditUser?.name || null);
   const [canClaimWelfare, setCanClaimWelfare] = useState(false);
   const [activeGame, setActiveGame] = useState("reddit-battles");
+  const [newAchievements, setNewAchievements] = useState<string[]>([]);
 
   // Start automatic round management
   useRoundManager();
@@ -45,7 +50,29 @@ function App() {
     try {
       await placeBet(roundId, betOn, amount, redditUser.id);
       await refreshPlayer(); // Refresh player points after betting
-      toast.success("Bet placed successfully! 🎰");
+
+      // Award XP for placing a bet
+      try {
+        const xpResult = await awardXP(10, "Placed bet in Reddit Battle", {
+          roundId,
+          betOn,
+          amount,
+          timestamp: new Date().toISOString(),
+        });
+
+        if (xpResult?.level_up) {
+          toast.success(`🎉 Level up! You are now level ${xpResult.new_level}!`);
+        }
+
+        if (xpResult?.new_achievements && xpResult.new_achievements.length > 0) {
+          setNewAchievements(xpResult.new_achievements);
+        }
+      } catch (xpError) {
+        console.error("Failed to award XP:", xpError);
+        // Don't fail the bet if XP awarding fails
+      }
+
+      toast.success("Bet placed successfully! 🎰 (+10 XP)");
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to place bet. Please try again.";
       toast.error(errorMessage);
@@ -123,7 +150,7 @@ function App() {
         {activeGame === "meme-market" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-2">
-              <MemeMarket player={player} onRefreshPlayer={refreshPlayer} />
+              <MemeMarket player={player} onRefreshPlayer={refreshPlayer} redditUsername={redditUser?.name} />
             </div>
             <div className="space-y-4 sm:space-y-6 order-first lg:order-last">
               <Leaderboard players={leaderboard} />
@@ -138,7 +165,7 @@ function App() {
         {activeGame === "productivity-paradox" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-2">
-              <ProductivityParadox player={player} onRefreshPlayer={refreshPlayer} />
+              <ProductivityParadox player={player} onRefreshPlayer={refreshPlayer} redditUsername={redditUser?.name} />
             </div>
             <div className="space-y-4 sm:space-y-6 order-first lg:order-last">
               <Leaderboard players={leaderboard} showMetaMinutes={true} />
@@ -151,22 +178,40 @@ function App() {
         {activeGame === "coming-soon" && <ComingSoon />}
 
         {activeGame === "reddit-radio" && <RedditRadio />}
+
+        {activeGame === "progression" && (
+          <div className="max-w-6xl mx-auto">
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-foreground mb-2">Player Progression</h1>
+              <p className="text-muted-foreground">
+                Track your level, earn XP through gameplay, and unlock achievements as you master Gamerit!
+              </p>
+            </div>
+            <ProgressionSystem redditUsername={redditUser?.name || null} />
+          </div>
+        )}
       </main>
 
       <footer className="border-t border-border bg-card/50 mt-8 sm:mt-16 py-6 sm:py-8">
         <div className="container mx-auto px-4 text-center">
           <p className="text-muted-foreground text-sm sm:text-base">Gamerit - The Ultimate Reddit Gaming Platform</p>
           <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-            🎯 Battle • 📈 Trade • 🦴 Explore • 🏆 Compete
+            🎯 Battle • 📈 Trade • 🦴 Explore • 🏆 Compete • ⭐ Progress
           </p>
           <div className="mt-3 sm:mt-4 text-muted-foreground text-xs space-y-1">
             <p>• Reddit Battles: Bet on post performance and win big</p>
             <p>• Meme Market: Trade trending keywords like stocks</p>
             <p>• Archaeology: Discover the deepest comment chains</p>
+            <p>• Progression: Level up and unlock achievements as you play</p>
             <p>• Start with 1,000 free Karma Chips • Claim 50 welfare chips daily when broke</p>
           </div>
         </div>
       </footer>
+
+      {/* Achievement Notifications */}
+      {newAchievements.length > 0 && (
+        <AchievementNotification achievements={newAchievements} onClose={() => setNewAchievements([])} />
+      )}
 
       {/* Toast notifications */}
       <Toaster

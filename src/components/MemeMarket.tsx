@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { TrendingUp, TrendingDown, Minus, DollarSign, Briefcase, BarChart3, X, RefreshCw } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { useProgression } from "../hooks/useProgression";
 import toast from "react-hot-toast";
 
 interface MemeStock {
@@ -33,9 +34,10 @@ interface Player {
 interface MemeMarketProps {
   player: Player | null;
   onRefreshPlayer: () => void;
+  redditUsername?: string;
 }
 
-export function MemeMarket({ player, onRefreshPlayer }: MemeMarketProps) {
+export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMarketProps) {
   const [stocks, setStocks] = useState<MemeStock[]>([]);
   const [portfolio, setPortfolio] = useState<PlayerPortfolio[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +47,7 @@ export function MemeMarket({ player, onRefreshPlayer }: MemeMarketProps) {
   const [buyAmount, setBuyAmount] = useState("");
   const [sellShares, setSellShares] = useState("");
   const [transactionLoading, setTransactionLoading] = useState(false);
+  const { awardXP } = useProgression(redditUsername || null);
 
   // Fetch active meme stocks
   const fetchStocks = useCallback(async () => {
@@ -149,11 +152,27 @@ export function MemeMarket({ player, onRefreshPlayer }: MemeMarketProps) {
       const result = await response.json();
 
       if (result.success) {
-        toast.success(`Bought ${result.transaction.shares_bought} shares of ${result.transaction.stock_keyword}!`);
+        toast.success(
+          `Bought ${result.transaction.shares_bought} shares of ${result.transaction.stock_keyword}! (+5 XP)`
+        );
         setBuyAmount("");
         setSelectedStock(null);
         onRefreshPlayer();
         fetchPortfolio();
+
+        // Award XP for trading
+        if (redditUsername) {
+          try {
+            await awardXP(5, "Bought meme stock", {
+              stockKeyword: selectedStock.meme_keyword,
+              sharesBought: result.transaction.shares_bought,
+              amountSpent: amount,
+              timestamp: new Date().toISOString(),
+            });
+          } catch (xpError) {
+            console.error("Failed to award XP for stock purchase:", xpError);
+          }
+        }
       } else {
         toast.error(result.error || "Failed to buy stock");
       }
@@ -198,11 +217,28 @@ export function MemeMarket({ player, onRefreshPlayer }: MemeMarketProps) {
         toast.success(
           `Sold ${transaction.shares_sold} shares for ${transaction.total_payout} chips! ${profit}${Math.round(
             transaction.profit_loss
-          )} profit`
+          )} profit (+5 XP)`
         );
         setSellShares("");
         onRefreshPlayer();
         fetchPortfolio();
+
+        // Award XP for selling (extra XP if profitable)
+        if (redditUsername) {
+          try {
+            const xpAmount = transaction.profit_loss > 0 ? 10 : 5; // Bonus XP for profitable trades
+            await awardXP(xpAmount, "Sold meme stock", {
+              stockKeyword: portfolioItem.meme_stocks.meme_keyword,
+              sharesSold: transaction.shares_sold,
+              totalPayout: transaction.total_payout,
+              profitLoss: transaction.profit_loss,
+              profitable: transaction.profit_loss > 0,
+              timestamp: new Date().toISOString(),
+            });
+          } catch (xpError) {
+            console.error("Failed to award XP for stock sale:", xpError);
+          }
+        }
       } else {
         toast.error(result.error || "Failed to sell stock");
       }

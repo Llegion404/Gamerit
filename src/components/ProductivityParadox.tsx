@@ -15,11 +15,13 @@ import {
 } from "lucide-react";
 import { Player } from "../lib/supabase";
 import { supabase } from "../lib/supabase";
+import { useProgression } from "../hooks/useProgression";
 import toast from "react-hot-toast";
 
 interface ProductivityParadoxProps {
   player: Player | null;
   onRefreshPlayer: () => void;
+  redditUsername?: string;
 }
 
 interface Modal {
@@ -310,7 +312,8 @@ const fakeMeetings = [
   { id: "8", title: "Digital Disruption Deep Dive", time: "In 6 min", attendees: 9, urgency: "medium" as const },
 ];
 
-export function ProductivityParadox({ player, onRefreshPlayer }: ProductivityParadoxProps) {
+export function ProductivityParadox({ player, onRefreshPlayer, redditUsername }: ProductivityParadoxProps) {
+  const { awardXP } = useProgression(redditUsername || null);
   const [isInSession, setIsInSession] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [sessionTime, setSessionTime] = useState(0);
@@ -524,7 +527,25 @@ export function ProductivityParadox({ player, onRefreshPlayer }: ProductivityPar
       setIsPaused(false);
 
       onRefreshPlayer();
-      toast.success(`Session complete! Earned ${sessionScore} Meta-Minutes! 🏆`);
+
+      // Award XP based on meta-minutes earned (1 XP per minute, minimum 5 XP)
+      if (redditUsername) {
+        try {
+          const xpAmount = Math.max(5, sessionScore);
+          await awardXP(xpAmount, "Completed Productivity Paradox session", {
+            sessionDuration: sessionTime,
+            metaMinutesEarned: sessionScore,
+            procrastinationTime,
+            timestamp: new Date().toISOString(),
+          });
+          toast.success(`Session complete! Earned ${sessionScore} Meta-Minutes and ${xpAmount} XP! 🏆`);
+        } catch (xpError) {
+          console.error("Failed to award XP for productivity session:", xpError);
+          toast.success(`Session complete! Earned ${sessionScore} Meta-Minutes! 🏆`);
+        }
+      } else {
+        toast.success(`Session complete! Earned ${sessionScore} Meta-Minutes! 🏆`);
+      }
     } catch (error) {
       console.error("Error ending session:", error);
       toast.error("Failed to save session. Please try again.");
