@@ -34,6 +34,7 @@ const games = [
   { id: "meme-market", name: "Meme Market", icon: TrendingUp, active: true },
   { id: "archaeology", name: "Archaeology", icon: Search, active: true },
   { id: "productivity-paradox", name: "Productivity Paradox", icon: Timer, active: true },
+  { id: "reddit-radio", name: "Reddit Radio", icon: SquareDashedBottomCode, active: true },
   { id: "coming-soon", name: "Coming soon", icon: SquareDashedBottomCode, active: false },
 ];
 
