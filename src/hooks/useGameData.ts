@@ -1,10 +1,77 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase, GameRound, Player } from "../lib/supabase";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 // Constants for better maintainability
 const POLLING_INTERVAL_MS = 30000; // 30 seconds
 const PREVIOUS_ROUNDS_LIMIT = 10;
 const LEADERBOARD_LIMIT = 10;
+
+// Global subscription manager to prevent duplicate subscriptions
+class SubscriptionManager {
+  private static instance: SubscriptionManager;
+  private roundsSubscription: RealtimeChannel | null = null;
+  private playersSubscription: RealtimeChannel | null = null;
+  private subscribers: Set<() => void> = new Set();
+
+  static getInstance(): SubscriptionManager {
+    if (!SubscriptionManager.instance) {
+      SubscriptionManager.instance = new SubscriptionManager();
+    }
+    return SubscriptionManager.instance;
+  }
+
+  subscribe(callback: () => void) {
+    this.subscribers.add(callback);
+
+    if (!this.roundsSubscription || !this.playersSubscription) {
+      this.setupSubscriptions();
+    }
+  }
+
+  unsubscribe(callback: () => void) {
+    this.subscribers.delete(callback);
+
+    if (this.subscribers.size === 0) {
+      this.cleanup();
+    }
+  }
+
+  private setupSubscriptions() {
+    if (this.roundsSubscription || this.playersSubscription) {
+      return; // Already set up
+    }
+
+    this.roundsSubscription = supabase
+      .channel(`game_rounds_global_${Date.now()}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "game_rounds" }, () => {
+        this.notifySubscribers();
+      })
+      .subscribe();
+
+    this.playersSubscription = supabase
+      .channel(`players_global_${Date.now()}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "players" }, () => {
+        this.notifySubscribers();
+      })
+      .subscribe();
+  }
+
+  private notifySubscribers() {
+    this.subscribers.forEach((callback) => callback());
+  }
+
+  private cleanup() {
+    if (this.roundsSubscription) {
+      supabase.removeChannel(this.roundsSubscription);
+      this.roundsSubscription = null;
+    }
+    if (this.playersSubscription) {
+      supabase.removeChannel(this.playersSubscription);
+      this.playersSubscription = null;
+    }
+  }
+}
 
 /**
  * Custom hook for managing game data including rounds, leaderboard, and betting functionality
@@ -136,21 +203,15 @@ export function useGameData() {
 
     loadData();
 
-    // Set up real-time subscriptions
-    const roundsSubscription = supabase
-      .channel("game_rounds")
-      .on("postgres_changes", { event: "*", schema: "public", table: "game_rounds" }, () => {
-        fetchCurrentRound();
-        fetchPreviousRounds();
-      })
-      .subscribe();
+    // Use subscription manager to prevent duplicate subscriptions
+    const subscriptionManager = SubscriptionManager.getInstance();
+    const refreshCallback = () => {
+      fetchCurrentRound();
+      fetchPreviousRounds();
+      fetchLeaderboard();
+    };
 
-    const playersSubscription = supabase
-      .channel("players")
-      .on("postgres_changes", { event: "*", schema: "public", table: "players" }, () => {
-        fetchLeaderboard();
-      })
-      .subscribe();
+    subscriptionManager.subscribe(refreshCallback);
 
     // Add polling as backup (every 30 seconds)
     const pollingInterval = setInterval(() => {
@@ -160,8 +221,7 @@ export function useGameData() {
     }, POLLING_INTERVAL_MS);
 
     return () => {
-      supabase.removeChannel(roundsSubscription);
-      supabase.removeChannel(playersSubscription);
+      subscriptionManager.unsubscribe(refreshCallback);
       clearInterval(pollingInterval);
     };
   }, [fetchCurrentRound, fetchPreviousRounds, fetchLeaderboard]);

@@ -104,37 +104,45 @@ export function useAuth() {
 
   useEffect(() => {
     const initAuth = async () => {
-      setLoading(true);
+      try {
+        setLoading(true);
 
-      // Check for OAuth callback
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get("code");
-      const state = urlParams.get("state");
+        // Check for OAuth callback
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get("code");
+        const state = urlParams.get("state");
 
-      if (code && state) {
-        // Clean up URL immediately to prevent re-processing
-        window.history.replaceState({}, document.title, "/");
-        await handleOAuthCallback(code, state);
-        return;
-      }
-
-      // Check for existing session
-      const user = redditAuth.getCurrentUser();
-      if (user) {
-        setRedditUser(user);
-
-        try {
-          const { data, error } = await supabase.from("players").select("*").eq("reddit_id", user.id).single();
-
-          if (!error && data) {
-            setPlayer(data);
-          }
-        } catch (error) {
-          console.error("Failed to load player:", error);
+        if (code && state) {
+          // Clean up URL immediately to prevent re-processing
+          window.history.replaceState({}, document.title, "/");
+          await handleOAuthCallback(code, state);
+          return;
         }
-      }
 
-      setLoading(false);
+        // Check for existing session
+        const user = redditAuth.getCurrentUser();
+        if (user) {
+          setRedditUser(user);
+
+          try {
+            const { data, error } = await supabase.from("players").select("*").eq("reddit_id", user.id).single();
+
+            if (!error && data) {
+              setPlayer(data);
+            }
+          } catch (error) {
+            console.error("Failed to load player:", error);
+            // Don't throw here, just log the error to avoid breaking the app
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+        // Reset states on error
+        setRedditUser(null);
+        setPlayer(null);
+      } finally {
+        setLoading(false);
+      }
     };
 
     initAuth();

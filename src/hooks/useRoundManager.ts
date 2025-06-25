@@ -16,7 +16,7 @@ export function useRoundManager() {
       isProcessingRef.current = true;
       console.log("Checking for expired rounds...");
 
-      // Get all active rounds
+      // Get all active rounds with better error handling
       const { data: activeRounds, error: fetchError } = await supabase
         .from("game_rounds")
         .select("*")
@@ -24,12 +24,18 @@ export function useRoundManager() {
 
       if (fetchError) {
         console.error("Error fetching active rounds:", fetchError);
+        // Don't throw here, just log and return to avoid breaking the app
         return;
       }
 
       if (!activeRounds || activeRounds.length === 0) {
         console.log("No active rounds found, creating new round...");
-        await createNewRound();
+        try {
+          await createNewRound();
+        } catch (error) {
+          console.error("Failed to create initial round:", error);
+          // Don't throw, just log the error
+        }
         return;
       }
 
@@ -45,7 +51,12 @@ export function useRoundManager() {
         console.log(`Found ${expiredRounds.length} expired rounds, ending them...`);
 
         for (const round of expiredRounds) {
-          await endRound(round.id);
+          try {
+            await endRound(round.id);
+          } catch (error) {
+            console.error(`Failed to end round ${round.id}:`, error);
+            // Continue with other rounds even if one fails
+          }
         }
 
         // After ending rounds, check if we need to create more rounds to maintain 10 active
@@ -88,6 +99,7 @@ export function useRoundManager() {
       }
     } catch (error) {
       console.error("Error in round management:", error);
+      // Don't re-throw to avoid breaking the app
     } finally {
       isProcessingRef.current = false;
     }
@@ -141,12 +153,18 @@ export function useRoundManager() {
   const startRoundMonitoring = useCallback(() => {
     console.log("Starting round monitoring...");
 
-    // Check immediately
-    checkAndManageRounds();
+    // Add a small delay before the first check to avoid initial page load conflicts
+    setTimeout(() => {
+      checkAndManageRounds().catch((error) => {
+        console.error("Initial round management check failed:", error);
+      });
+    }, 2000); // 2 second delay
 
     // Then check every 5 hours
     intervalRef.current = setInterval(() => {
-      checkAndManageRounds();
+      checkAndManageRounds().catch((error) => {
+        console.error("Scheduled round management check failed:", error);
+      });
     }, 5 * 60 * 60 * 1000); // 5 hours
   }, [checkAndManageRounds]);
 
