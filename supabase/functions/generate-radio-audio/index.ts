@@ -29,7 +29,7 @@ serve(async (req) => {
   }
 
   try {
-    const { content, player_id } = await req.json();
+    const { content, voice_id, player_id } = await req.json();
 
     if (!content || !content.text) {
       return new Response(JSON.stringify({ error: "Invalid content provided" }), {
@@ -75,8 +75,8 @@ serve(async (req) => {
 
     console.log(`TTS Text (${ttsText.length} chars): ${ttsText.substring(0, 100)}...`);
 
-    // Use a default voice ID (you can make this configurable later)
-    const voiceId = "21m00Tcm4TlvDq8ikWAM"; // Rachel voice
+    // Use the provided voice ID or default to Rachel
+    const voiceId = voice_id || "21m00Tcm4TlvDq8ikWAM"; // Default Rachel voice
 
     // Call ElevenLabs API
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {

@@ -21,6 +21,7 @@ interface RadioStation {
   id: string;
   name: string;
   subreddits: string[];
+  voice_id?: string;
   player_id: string;
   created_at: string;
 }
@@ -60,6 +61,33 @@ export function RedditRadio() {
   const [newStationName, setNewStationName] = useState("");
   const [newStationSubreddits, setNewStationSubreddits] = useState<string[]>([]);
   const [subredditInput, setSubredditInput] = useState("");
+  const [selectedVoice, setSelectedVoice] = useState("21m00Tcm4TlvDq8ikWAM"); // Default Rachel voice
+  const [subredditSuggestions, setSubredditSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Available ElevenLabs voices
+  const availableVoices = [
+    { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", description: "Calm, friendly female voice" },
+    { id: "AZnzlk1XvdvUeBnXmlld", name: "Domi", description: "Strong, confident female voice" },
+    { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella", description: "Sweet, young female voice" },
+    { id: "ErXwobaYiN019PkySvjV", name: "Antoni", description: "Well-rounded male voice" },
+    { id: "VR6AewLTigWG4xSOukaG", name: "Arnold", description: "Crisp, authoritative male voice" },
+    { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", description: "Deep, mature male voice" },
+    { id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam", description: "Casual, friendly male voice" },
+  ];
+
+  // Popular subreddits for autocomplete
+  const popularSubreddits = [
+    "AskReddit", "funny", "todayilearned", "explainlikeimfive", "mildlyinteresting",
+    "Showerthoughts", "LifeProTips", "unpopularopinion", "changemyview", "mildlyinfuriating",
+    "coolguides", "dataisbeautiful", "science", "technology", "worldnews",
+    "news", "politics", "gaming", "movies", "music", "books", "food",
+    "cooking", "fitness", "personalfinance", "relationship_advice", "AmItheAsshole",
+    "tifu", "confession", "NoStupidQuestions", "OutOfTheLoop", "YouShouldKnow",
+    "wholesomememes", "dankmemes", "memes", "aww", "cats", "dogs", "nature",
+    "EarthPorn", "space", "futurology", "philosophy", "history", "DIY",
+    "programming", "webdev", "MachineLearning", "artificial", "cryptocurrency"
+  ];
 
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -88,7 +116,7 @@ export function RedditRadio() {
 
   // Create new radio station
   const createStation = async () => {
-    if (!player || !newStationName.trim() || newStationSubreddits.length === 0) {
+    if (!player || !newStationName.trim() || newStationSubreddits.length === 0 || !selectedVoice) {
       toast.error("Please provide a station name and at least one subreddit");
       return;
     }
@@ -99,6 +127,7 @@ export function RedditRadio() {
         .insert({
           name: newStationName.trim(),
           subreddits: newStationSubreddits,
+          voice_id: selectedVoice,
           player_id: player.id,
         })
         .select()
@@ -109,6 +138,7 @@ export function RedditRadio() {
       setStations(prev => [data, ...prev]);
       setNewStationName("");
       setNewStationSubreddits([]);
+      setSelectedVoice("21m00Tcm4TlvDq8ikWAM");
       setShowStationEditor(false);
       toast.success("Radio station created!");
     } catch (error) {
@@ -123,12 +153,42 @@ export function RedditRadio() {
     if (subreddit && !newStationSubreddits.includes(subreddit)) {
       setNewStationSubreddits(prev => [...prev, subreddit]);
       setSubredditInput("");
+      setShowSuggestions(false);
     }
   };
 
   // Remove subreddit from new station
   const removeSubreddit = (subreddit: string) => {
     setNewStationSubreddits(prev => prev.filter(s => s !== subreddit));
+  };
+
+  // Handle subreddit input change with autocomplete
+  const handleSubredditInputChange = (value: string) => {
+    setSubredditInput(value);
+    
+    if (value.trim().length > 0) {
+      const filtered = popularSubreddits
+        .filter(sub => 
+          sub.toLowerCase().includes(value.toLowerCase()) && 
+          !newStationSubreddits.includes(sub.toLowerCase())
+        )
+        .slice(0, 5);
+      setSubredditSuggestions(filtered);
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  // Select suggestion
+  const selectSuggestion = (subreddit: string) => {
+    setSubredditInput(subreddit);
+    setShowSuggestions(false);
+    // Auto-add the subreddit
+    if (!newStationSubreddits.includes(subreddit.toLowerCase())) {
+      setNewStationSubreddits(prev => [...prev, subreddit.toLowerCase()]);
+      setSubredditInput("");
+    }
   };
 
   // Start playing a station
@@ -173,6 +233,7 @@ export function RedditRadio() {
       const { data, error } = await supabase.functions.invoke("generate-radio-audio", {
         body: {
           content: content,
+          voice_id: activeStation?.voice_id || "21m00Tcm4TlvDq8ikWAM",
           player_id: player?.id,
         },
       });
@@ -453,8 +514,116 @@ export function RedditRadio() {
               </div>
 
               <div>
+                <label className="text-sm font-medium block mb-2">Voice</label>
+                <select
+                  value={selectedVoice}
+                  onChange={(e) => setSelectedVoice(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                >
+                  {availableVoices.map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {voice.name} - {voice.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="text-sm font-medium block mb-2">Subreddits</label>
-                <div className="flex gap-2 mb-2">
+                <div className="relative">
+                  <div className="flex gap-2 mb-2">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        value={subredditInput}
+                        onChange={(e) => handleSubredditInputChange(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addSubreddit();
+                          }
+                        }}
+                        onFocus={() => {
+                          if (subredditInput.trim().length > 0) {
+                            setShowSuggestions(true);
+                          }
+                        }}
+                        onBlur={() => {
+                          // Delay hiding suggestions to allow clicking
+                          setTimeout(() => setShowSuggestions(false), 200);
+                        }}
+                        placeholder="todayilearned"
+                        className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                      />
+                      
+                      {/* Autocomplete suggestions */}
+                      {showSuggestions && subredditSuggestions.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 z-10 bg-card border border-border rounded-md shadow-lg mt-1 max-h-40 overflow-y-auto">
+                          {subredditSuggestions.map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              onClick={() => selectSuggestion(suggestion)}
+                              className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground text-sm border-b border-border last:border-b-0"
+                            >
+                              r/{suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={addSubreddit}
+                      className="bg-primary text-primary-foreground px-3 py-2 rounded-md hover:bg-primary/90 transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+                
+                {newStationSubreddits.length > 0 && (
+                  <div className="space-y-1">
+                    {newStationSubreddits.map((subreddit) => (
+                      <div
+                        key={subreddit}
+                        className="flex items-center justify-between bg-secondary/50 px-3 py-2 rounded-md"
+                      >
+                        <span className="text-sm">r/{subreddit}</span>
+                        <button
+                          onClick={() => removeSubreddit(subreddit)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setShowStationEditor(false)}
+                className="flex-1 px-4 py-2 border border-input rounded-md hover:bg-accent transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createStation}
+                disabled={!newStationName.trim() || newStationSubreddits.length === 0}
+                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Create Station
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default RedditRadio
                   <input
                     type="text"
                     value={subredditInput}
