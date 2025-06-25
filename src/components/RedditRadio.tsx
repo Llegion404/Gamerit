@@ -513,3 +513,5 @@ export function RedditRadio() {
     </div>
   );
 }
+
+export default RedditRadio
