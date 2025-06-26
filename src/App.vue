@@ -58,10 +58,15 @@ import AchievementNotification from "./components/AchievementNotification.vue";
 import { useAuth } from "./composables/useAuth";
 import { useGameData } from "./composables/useGameData";
 import { useRoundManager } from "./composables/useRoundManager";
+import { useTheme } from "./composables/useTheme";
 
 import { Loader2 } from "lucide-vue-next";
 
 const toast = useToast();
+
+// Initialize theme - set dark theme by default for casino aesthetic
+const { setTheme } = useTheme();
+setTheme("dark");
 
 // Composables
 const { player, redditUser, loading: authLoading, login, logout, claimWelfareChips } = useAuth();

@@ -8,23 +8,45 @@
         </div>
 
         <!-- User Info -->
-        <div class="flex items-center space-x-4">
-          <div v-if="player" class="flex items-center space-x-4">
-            <div class="text-sm">
-              <p class="font-medium">{{ player.reddit_username }}</p>
-              <p class="text-muted-foreground">{{ player.points }} points</p>
+        <div class="flex items-center space-x-2 sm:space-x-4">
+          <!-- Theme Toggle -->
+          <button
+            @click="toggleTheme"
+            class="p-2 rounded-md hover:bg-accent transition-colors"
+            aria-label="Toggle theme"
+          >
+            <Sun v-if="theme === 'light'" class="w-4 h-4" />
+            <Moon v-else-if="theme === 'dark'" class="w-4 h-4" />
+            <Monitor v-else class="w-4 h-4" />
+          </button>
+
+          <div v-if="player" class="flex items-center space-x-2 sm:space-x-4">
+            <div class="text-sm text-right">
+              <p class="font-medium text-foreground">{{ player.reddit_username }}</p>
+              <div class="flex items-center space-x-2 text-muted-foreground">
+                <Coins class="w-3 h-3" />
+                <span>{{ player.points?.toLocaleString() || 0 }}</span>
+              </div>
             </div>
             <button
               v-if="canClaimWelfare"
               @click="onClaimWelfare"
-              class="btn btn-sm bg-green-500 text-white px-3 py-1 rounded"
+              class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
             >
               Claim Welfare
             </button>
-            <button @click="onLogout" class="btn btn-sm bg-red-500 text-white px-3 py-1 rounded">Logout</button>
+            <button
+              @click="onLogout"
+              class="bg-destructive hover:bg-destructive/90 text-destructive-foreground px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            >
+              Logout
+            </button>
           </div>
           <div v-else>
-            <button @click="onLogin" class="btn btn-primary bg-blue-500 text-white px-4 py-2 rounded">
+            <button
+              @click="onLogin"
+              class="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md font-medium transition-colors"
+            >
               Login with Reddit
             </button>
           </div>
@@ -56,7 +78,21 @@
 <script setup lang="ts">
 import { Player } from "../lib/supabase";
 import { RedditUser } from "../lib/reddit-auth";
-import { Target, TrendingUp, Search, Timer, Trophy, SquareDashedBottomCode } from "lucide-vue-next";
+import {
+  Target,
+  TrendingUp,
+  Search,
+  Timer,
+  Trophy,
+  SquareDashedBottomCode,
+  Sun,
+  Moon,
+  Monitor,
+  Coins,
+} from "lucide-vue-next";
+import { useTheme } from "../composables/useTheme";
+
+const { theme, toggleTheme } = useTheme();
 
 defineProps<{
   player: Player | null;
