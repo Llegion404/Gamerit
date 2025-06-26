@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, SkipForward, Volume2, VolumeX, Plus, X, Radio, Loader2, Clock, Users } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { searchSubreddits as searchRedditAPI, type SubredditSuggestion } from "../lib/reddit-api";
 import { useAuth } from "../hooks/useAuth";
 import toast from "react-hot-toast";
 
@@ -30,14 +31,6 @@ interface PlaybackState {
   queue: RadioContent[];
   volume: number;
   isMuted: boolean;
-}
-
-interface SubredditSuggestion {
-  name: string;
-  title: string;
-  description: string;
-  subscribers: number;
-  over18: boolean;
 }
 
 interface Voice {
@@ -150,20 +143,12 @@ export function RedditRadio() {
 
       setLoadingSuggestions(true);
       try {
-        const { data, error } = await supabase.functions.invoke("search-subreddits", {
-          body: { query: query.trim(), limit: 8 },
-        });
+        const subreddits: SubredditSuggestion[] = await searchRedditAPI(query.trim(), 8);
 
-        if (error) throw error;
-
-        if (data?.subreddits) {
-          // Filter out already added subreddits
-          const filtered = data.subreddits.filter(
-            (sub: SubredditSuggestion) => !newStationSubreddits.includes(sub.name.toLowerCase())
-          );
-          setSubredditSuggestions(filtered);
-          setShowSuggestions(filtered.length > 0);
-        }
+        // Filter out already added subreddits
+        const filtered = subreddits.filter((sub) => !newStationSubreddits.includes(sub.name.toLowerCase()));
+        setSubredditSuggestions(filtered);
+        setShowSuggestions(filtered.length > 0);
       } catch (error) {
         console.error("Error searching subreddits:", error);
         setSubredditSuggestions([]);
@@ -261,6 +246,12 @@ export function RedditRadio() {
     setActiveStation(station);
 
     try {
+      // Debug the station data before sending
+      console.log("Opening station:", station);
+      console.log("Station subreddits:", station.subreddits);
+      console.log("Subreddits type:", typeof station.subreddits);
+      console.log("Is array:", Array.isArray(station.subreddits));
+
       // Fetch content from Reddit for this station
       const { data, error } = await supabase.functions.invoke("fetch-radio-content", {
         body: {
@@ -268,6 +259,8 @@ export function RedditRadio() {
           player_id: player?.id,
         },
       });
+
+      console.log("Function response:", { data, error });
 
       if (error) throw error;
 
