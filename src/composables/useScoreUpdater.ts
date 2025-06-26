@@ -1,10 +1,10 @@
-import { useEffect, useRef, useCallback } from "react";
+import { ref, onUnmounted, watch } from "vue";
 import { supabase } from "../lib/supabase";
 
 export function useScoreUpdater(roundId?: string, onScoreUpdate?: () => void) {
-  const intervalRef = useRef<NodeJS.Timeout>();
+  const intervalRef = ref<NodeJS.Timeout>();
 
-  const updateScores = useCallback(async () => {
+  const updateScores = async () => {
     try {
       // Call the Supabase function to update current scores
       const { data, error } = await supabase.functions.invoke("update-current-scores", {
@@ -25,9 +25,9 @@ export function useScoreUpdater(roundId?: string, onScoreUpdate?: () => void) {
     } catch (error) {
       console.error("Failed to update scores:", error);
     }
-  }, [onScoreUpdate]);
+  };
 
-  useEffect(() => {
+  const startUpdating = () => {
     // Only start updating if we have an active round
     if (!roundId) {
       return;
@@ -37,15 +37,32 @@ export function useScoreUpdater(roundId?: string, onScoreUpdate?: () => void) {
     updateScores();
 
     // Set up interval to update every minute (60000ms)
-    intervalRef.current = setInterval(updateScores, 60000);
+    intervalRef.value = setInterval(updateScores, 60000);
+  };
 
-    // Cleanup on unmount or when roundId changes
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+  const stopUpdating = () => {
+    if (intervalRef.value) {
+      clearInterval(intervalRef.value);
+      intervalRef.value = undefined;
+    }
+  };
+
+  // Watch for roundId changes
+  watch(
+    () => roundId,
+    (newRoundId) => {
+      stopUpdating();
+      if (newRoundId) {
+        startUpdating();
       }
-    };
-  }, [roundId, updateScores]);
+    },
+    { immediate: true }
+  );
+
+  // Cleanup on unmount
+  onUnmounted(() => {
+    stopUpdating();
+  });
 
   // Return manual update function in case we need to trigger updates manually
   return { updateScores };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { ref, onMounted, onUnmounted } from "vue";
 import { supabase, GameRound, Player } from "../lib/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -74,18 +74,18 @@ class SubscriptionManager {
 }
 
 /**
- * Custom hook for managing game data including rounds, leaderboard, and betting functionality
+ * Composable for managing game data including rounds, leaderboard, and betting functionality
  * Features real-time subscriptions and polling fallback
  */
 
 export function useGameData() {
-  const [currentRounds, setCurrentRounds] = useState<GameRound[]>([]);
-  const [currentRound, setCurrentRound] = useState<GameRound | null>(null); // Keep for backward compatibility
-  const [previousRounds, setPreviousRounds] = useState<GameRound[]>([]);
-  const [leaderboard, setLeaderboard] = useState<Player[]>([]);
-  const [loading, setLoading] = useState(true);
+  const currentRounds = ref<GameRound[]>([]);
+  const currentRound = ref<GameRound | null>(null); // Keep for backward compatibility
+  const previousRounds = ref<GameRound[]>([]);
+  const leaderboard = ref<Player[]>([]);
+  const loading = ref(true);
 
-  const fetchCurrentRounds = useCallback(async () => {
+  const fetchCurrentRounds = async () => {
     try {
       const { data, error } = await supabase
         .from("game_rounds")
@@ -94,24 +94,24 @@ export function useGameData() {
         .order("created_at", { ascending: false });
 
       if (!error && data) {
-        setCurrentRounds(data);
-        setCurrentRound(data[0] || null); // Set first round for backward compatibility
+        currentRounds.value = data;
+        currentRound.value = data[0] || null; // Set first round for backward compatibility
       } else {
-        setCurrentRounds([]);
-        setCurrentRound(null);
+        currentRounds.value = [];
+        currentRound.value = null;
       }
     } catch {
-      setCurrentRounds([]);
-      setCurrentRound(null);
+      currentRounds.value = [];
+      currentRound.value = null;
     }
-  }, []);
+  };
 
   // Keep the old function for backward compatibility
-  const fetchCurrentRound = useCallback(async () => {
+  const fetchCurrentRound = async () => {
     await fetchCurrentRounds();
-  }, [fetchCurrentRounds]);
+  };
 
-  const fetchPreviousRounds = useCallback(async () => {
+  const fetchPreviousRounds = async () => {
     try {
       const { data, error } = await supabase
         .from("game_rounds")
@@ -121,14 +121,14 @@ export function useGameData() {
         .limit(PREVIOUS_ROUNDS_LIMIT);
 
       if (!error && data) {
-        setPreviousRounds(data);
+        previousRounds.value = data;
       }
     } catch {
-      setPreviousRounds([]);
+      previousRounds.value = [];
     }
-  }, []);
+  };
 
-  const fetchLeaderboard = useCallback(async () => {
+  const fetchLeaderboard = async () => {
     try {
       const { data, error } = await supabase
         .from("players")
@@ -137,12 +137,12 @@ export function useGameData() {
         .limit(LEADERBOARD_LIMIT);
 
       if (!error && data) {
-        setLeaderboard(data);
+        leaderboard.value = data;
       }
     } catch {
-      setLeaderboard([]);
+      leaderboard.value = [];
     }
-  }, []);
+  };
 
   const placeBet = async (roundId: string, betOn: "A" | "B", amount: number, redditId: string) => {
     const { data, error } = await supabase.rpc("place_bet_transaction", {
@@ -194,14 +194,18 @@ export function useGameData() {
     }
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([fetchCurrentRound(), fetchPreviousRounds(), fetchLeaderboard()]);
-      setLoading(false);
-    };
+  const refreshData = () => {
+    fetchCurrentRound();
+    fetchPreviousRounds();
+    fetchLeaderboard();
+  };
 
-    loadData();
+  let pollingInterval: NodeJS.Timeout | null = null;
+
+  onMounted(async () => {
+    loading.value = true;
+    await Promise.all([fetchCurrentRound(), fetchPreviousRounds(), fetchLeaderboard()]);
+    loading.value = false;
 
     // Use subscription manager to prevent duplicate subscriptions
     const subscriptionManager = SubscriptionManager.getInstance();
@@ -214,23 +218,26 @@ export function useGameData() {
     subscriptionManager.subscribe(refreshCallback);
 
     // Add polling as backup (every 30 seconds)
-    const pollingInterval = setInterval(() => {
+    pollingInterval = setInterval(() => {
       fetchCurrentRound();
       fetchPreviousRounds();
       fetchLeaderboard();
     }, POLLING_INTERVAL_MS);
+  });
 
-    return () => {
-      subscriptionManager.unsubscribe(refreshCallback);
-      clearInterval(pollingInterval);
+  onUnmounted(() => {
+    const subscriptionManager = SubscriptionManager.getInstance();
+    const refreshCallback = () => {
+      fetchCurrentRound();
+      fetchPreviousRounds();
+      fetchLeaderboard();
     };
-  }, [fetchCurrentRound, fetchPreviousRounds, fetchLeaderboard]);
 
-  const refreshData = useCallback(() => {
-    fetchCurrentRound();
-    fetchPreviousRounds();
-    fetchLeaderboard();
-  }, [fetchCurrentRound, fetchPreviousRounds, fetchLeaderboard]);
+    subscriptionManager.unsubscribe(refreshCallback);
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+  });
 
   return {
     currentRound,

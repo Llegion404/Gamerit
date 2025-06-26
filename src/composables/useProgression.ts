@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { ref, onMounted, computed } from "vue";
 import { supabase } from "../lib/supabase";
 
 export interface Achievement {
@@ -39,12 +39,12 @@ export interface XPTransaction {
 }
 
 export function useProgression(redditUsername: string | null) {
-  const [progression, setProgression] = useState<PlayerProgression | null>(null);
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [playerAchievements, setPlayerAchievements] = useState<PlayerAchievement[]>([]);
-  const [recentXP, setRecentXP] = useState<XPTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const progression = ref<PlayerProgression | null>(null);
+  const achievements = ref<Achievement[]>([]);
+  const playerAchievements = ref<PlayerAchievement[]>([]);
+  const recentXP = ref<XPTransaction[]>([]);
+  const loading = ref(true);
+  const error = ref<string | null>(null);
 
   // Calculate XP needed for next level
   const getXPForNextLevel = (currentLevel: number): number => {
@@ -56,12 +56,12 @@ export function useProgression(redditUsername: string | null) {
     return totalXPNeeded;
   };
 
-  const getXPProgress = (): { current: number; needed: number; percentage: number } => {
-    if (!progression) return { current: 0, needed: 100, percentage: 0 };
+  const getXPProgress = computed(() => {
+    if (!progression.value) return { current: 0, needed: 100, percentage: 0 };
 
-    const currentLevelXP = getXPForNextLevel(progression.level - 1);
-    const nextLevelXP = getXPForNextLevel(progression.level);
-    const currentXPInLevel = progression.xp - currentLevelXP;
+    const currentLevelXP = getXPForNextLevel(progression.value.level - 1);
+    const nextLevelXP = getXPForNextLevel(progression.value.level);
+    const currentXPInLevel = progression.value.xp - currentLevelXP;
     const neededForNext = nextLevelXP - currentLevelXP;
 
     return {
@@ -69,13 +69,13 @@ export function useProgression(redditUsername: string | null) {
       needed: neededForNext,
       percentage: (currentXPInLevel / neededForNext) * 100,
     };
-  };
+  });
 
-  const fetchProgression = useCallback(async () => {
+  const fetchProgression = async () => {
     if (!redditUsername) return;
 
     try {
-      setLoading(true);
+      loading.value = true;
 
       // Get player progression data
       const { data: playerData, error: playerError } = await supabase
@@ -91,14 +91,14 @@ export function useProgression(redditUsername: string | null) {
       }
 
       if (playerData) {
-        setProgression({
+        progression.value = {
           xp: playerData.xp,
           level: playerData.level,
           total_karma_chips_earned: playerData.total_karma_chips_earned,
           total_karma_chips_lost: playerData.total_karma_chips_lost,
           lowest_karma_chips: playerData.lowest_karma_chips,
           highest_karma_chips: playerData.highest_karma_chips,
-        });
+        };
       }
 
       // Get all achievements
@@ -111,7 +111,7 @@ export function useProgression(redditUsername: string | null) {
         throw achievementsError;
       }
 
-      setAchievements(achievementsData || []);
+      achievements.value = achievementsData || [];
 
       // Get player achievement progress
       if (playerData) {
@@ -142,15 +142,14 @@ export function useProgression(redditUsername: string | null) {
           throw playerAchievementsError;
         }
 
-        setPlayerAchievements(
+        playerAchievements.value =
           playerAchievementsData?.map((pa) => ({
             id: pa.id,
             achievement: pa.achievements as unknown as Achievement,
             progress: pa.progress,
             completed: pa.completed,
             completed_at: pa.completed_at,
-          })) || []
-        );
+          })) || [];
 
         // Get recent XP transactions
         const { data: xpData, error: xpError } = await supabase
@@ -164,15 +163,15 @@ export function useProgression(redditUsername: string | null) {
           throw xpError;
         }
 
-        setRecentXP(xpData || []);
+        recentXP.value = xpData || [];
       }
     } catch (err) {
       console.error("Error fetching progression:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch progression data");
+      error.value = err instanceof Error ? err.message : "Failed to fetch progression data";
     } finally {
-      setLoading(false);
+      loading.value = false;
     }
-  }, [redditUsername]);
+  };
 
   const awardXP = async (amount: number, reason: string, metadata?: Record<string, unknown>) => {
     if (!redditUsername) return;
@@ -241,11 +240,11 @@ export function useProgression(redditUsername: string | null) {
     }
   };
 
-  useEffect(() => {
+  onMounted(() => {
     if (redditUsername) {
       fetchProgression();
     }
-  }, [redditUsername, fetchProgression]);
+  });
 
   return {
     progression,

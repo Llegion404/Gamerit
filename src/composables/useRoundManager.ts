@@ -1,19 +1,19 @@
-import { useEffect, useRef, useCallback } from "react";
+import { ref, onMounted, onUnmounted } from "vue";
 import { supabase } from "../lib/supabase";
 
 export function useRoundManager() {
-  const intervalRef = useRef<NodeJS.Timeout>();
-  const isProcessingRef = useRef(false);
+  const intervalRef = ref<NodeJS.Timeout>();
+  const isProcessingRef = ref(false);
 
-  const checkAndManageRounds = useCallback(async () => {
+  const checkAndManageRounds = async () => {
     // Prevent multiple simultaneous calls
-    if (isProcessingRef.current) {
+    if (isProcessingRef.value) {
       console.log("Round management already in progress, skipping...");
       return;
     }
 
     try {
-      isProcessingRef.current = true;
+      isProcessingRef.value = true;
       console.log("Checking for expired rounds...");
 
       // Get all active rounds with better error handling
@@ -101,9 +101,9 @@ export function useRoundManager() {
       console.error("Error in round management:", error);
       // Don't re-throw to avoid breaking the app
     } finally {
-      isProcessingRef.current = false;
+      isProcessingRef.value = false;
     }
-  }, []);
+  };
 
   const endRound = async (roundId: string) => {
     try {
@@ -150,7 +150,7 @@ export function useRoundManager() {
     }
   };
 
-  const startRoundMonitoring = useCallback(() => {
+  const startRoundMonitoring = () => {
     console.log("Starting round monitoring...");
 
     // Add a small delay before the first check to avoid initial page load conflicts
@@ -161,30 +161,30 @@ export function useRoundManager() {
     }, 2000); // 2 second delay
 
     // Then check every 5 hours
-    intervalRef.current = setInterval(() => {
+    intervalRef.value = setInterval(() => {
       checkAndManageRounds().catch((error) => {
         console.error("Scheduled round management check failed:", error);
       });
     }, 5 * 60 * 60 * 1000); // 5 hours
-  }, [checkAndManageRounds]);
+  };
 
-  const stopRoundMonitoring = useCallback(() => {
+  const stopRoundMonitoring = () => {
     console.log("Stopping round monitoring...");
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = undefined;
+    if (intervalRef.value) {
+      clearInterval(intervalRef.value);
+      intervalRef.value = undefined;
     }
-  }, []);
+  };
 
   // Start monitoring when hook is used
-  useEffect(() => {
+  onMounted(() => {
     startRoundMonitoring();
+  });
 
-    // Cleanup on unmount
-    return () => {
-      stopRoundMonitoring();
-    };
-  }, [startRoundMonitoring, stopRoundMonitoring]);
+  // Cleanup on unmount
+  onUnmounted(() => {
+    stopRoundMonitoring();
+  });
 
   // Also provide manual trigger functions
   return {
