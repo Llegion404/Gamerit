@@ -48,31 +48,6 @@ export function HotPotatoBetting({ player, redditUser, onRefreshPlayer }: HotPot
   const [betAmount, setBetAmount] = useState(100);
   const [placingBet, setPlacingBet] = useState(false);
 
-  // Listen for automatic round creation events
-  useEffect(() => {
-    const handleHotPotatoRoundCreated = (event: CustomEvent) => {
-      console.log("Hot potato round created event received:", event.detail);
-      fetchRounds();
-      toast.success("New hot potato round created! 🔥", { duration: 3000 });
-    };
-
-    const handleHotPotatoPostsUpdated = (event: CustomEvent) => {
-      console.log("Hot potato posts updated event received:", event.detail);
-      fetchRounds();
-      if (event.detail?.deleted_posts > 0) {
-        toast.info(`${event.detail.deleted_posts} post(s) were deleted!`, { duration: 4000 });
-      }
-    };
-
-    window.addEventListener('hotPotatoRoundCreated', handleHotPotatoRoundCreated as EventListener);
-    window.addEventListener('hotPotatoPostsUpdated', handleHotPotatoPostsUpdated as EventListener);
-
-    return () => {
-      window.removeEventListener('hotPotatoRoundCreated', handleHotPotatoRoundCreated as EventListener);
-      window.removeEventListener('hotPotatoPostsUpdated', handleHotPotatoPostsUpdated as EventListener);
-    };
-  }, [fetchRounds]);
-
   const fetchRounds = useCallback(async () => {
     try {
       // Fetch active rounds
@@ -122,6 +97,31 @@ export function HotPotatoBetting({ player, redditUser, onRefreshPlayer }: HotPot
       console.error("Error fetching user bets:", error);
     }
   }, [player]);
+
+  // Listen for automatic round creation events
+  useEffect(() => {
+    const handleHotPotatoRoundCreated = (event: CustomEvent) => {
+      console.log("Hot potato round created event received:", event.detail);
+      fetchRounds();
+      toast.success("New hot potato round created! 🔥", { duration: 3000 });
+    };
+
+    const handleHotPotatoPostsUpdated = (event: CustomEvent) => {
+      console.log("Hot potato posts updated event received:", event.detail);
+      fetchRounds();
+      if (event.detail?.deleted_posts > 0) {
+        toast.info(`${event.detail.deleted_posts} post(s) were deleted!`, { duration: 4000 });
+      }
+    };
+
+    window.addEventListener('hotPotatoRoundCreated', handleHotPotatoRoundCreated as EventListener);
+    window.addEventListener('hotPotatoPostsUpdated', handleHotPotatoPostsUpdated as EventListener);
+
+    return () => {
+      window.removeEventListener('hotPotatoRoundCreated', handleHotPotatoRoundCreated as EventListener);
+      window.removeEventListener('hotPotatoPostsUpdated', handleHotPotatoPostsUpdated as EventListener);
+    };
+  }, [fetchRounds]);
 
   useEffect(() => {
     const loadData = async () => {
