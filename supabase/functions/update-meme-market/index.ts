@@ -14,6 +14,8 @@ interface RedditPost {
     created_utc: number;
     subreddit: string;
     author: string;
+    num_comments: number;
+    upvote_ratio: number;
   };
 }
 
@@ -29,6 +31,15 @@ interface MemeStock {
   current_value: number;
   is_active: boolean;
   history: Array<{ timestamp: string; value: number }>;
+  created_at: string;
+}
+
+interface KeywordData {
+  count: number;
+  totalScore: number;
+  posts: number;
+  avgScore: number;
+  trendScore: number;
 }
 
 serve(async (req) => {
@@ -41,29 +52,96 @@ serve(async (req) => {
     // Initialize Supabase client with service role key for admin privileges
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const REDDIT_CLIENT_ID = Deno.env.get("REDDIT_CLIENT_ID");
+    const REDDIT_CLIENT_SECRET = Deno.env.get("REDDIT_CLIENT_SECRET");
+
+    if (!REDDIT_CLIENT_ID || !REDDIT_CLIENT_SECRET) {
+      console.log("Reddit credentials not available, applying market volatility only");
+      
+      // Apply random market volatility when Reddit data isn't available
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: volatilityResult } = await supabase.rpc("apply_market_volatility");
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Market volatility applied (Reddit data unavailable)",
+          volatility_applied: true,
+          stocks_updated: volatilityResult?.stocks_updated || 0,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
+    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log("Starting meme market update...");
+    console.log("Starting comprehensive meme market update...");
 
-    // Define target subreddits for meme analysis
-    const targetSubreddits = ["dankmemes", "MemeEconomy", "memes", "wholesomememes", "funny"];
+    // Get Reddit access token using client credentials
+    const tokenResponse = await fetch("https://www.reddit.com/api/v1/access_token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${btoa(`${REDDIT_CLIENT_ID}:${REDDIT_CLIENT_SECRET}`)}`,
+        "User-Agent": "KarmaCasino/1.0 by u/Cold_Count_3944",
+      },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      throw new Error("Failed to get Reddit access token");
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    // Target subreddits for meme analysis (expanded list)
+    const targetSubreddits = [
+      "dankmemes", "memes", "MemeEconomy", "wholesomememes", "funny", 
+      "PrequelMemes", "HistoryMemes", "ProgrammerHumor", "gaming",
+      "teenagers", "okbuddyretard", "DeepFriedMemes", "surrealmemes",
+      "antimeme", "bonehurtingjuice", "comedyheaven", "me_irl",
+      "meirl", "2meirl4meirl", "absolutelynotme_irl", "blackpeopletwitter",
+      "whitepeopletwitter", "scottishpeopletwitter", "facepalm",
+      "therewasanattempt", "mildlyinfuriating", "oddlysatisfying"
+    ];
 
     // Fetch hot posts from each subreddit
     const allPosts: RedditPost[] = [];
 
     for (const subreddit of targetSubreddits) {
       try {
-        const response = await fetch(`https://www.reddit.com/r/${subreddit}/hot.json?limit=50`, {
-          headers: {
-            "User-Agent": "Karma-Casino-Bot/1.0",
-          },
-        });
+        // Fetch both hot and top posts for better coverage
+        const endpoints = [`hot`, `top?t=day`];
+        
+        for (const endpoint of endpoints) {
+          const response = await fetch(`https://oauth.reddit.com/r/${subreddit}/${endpoint}?limit=50`, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "User-Agent": "KarmaCasino/1.0 by u/Cold_Count_3944",
+            },
+          });
 
-        if (response.ok) {
-          const data: RedditResponse = await response.json();
-          allPosts.push(...data.data.children);
-          console.log(`Fetched ${data.data.children.length} posts from r/${subreddit}`);
+          if (response.ok) {
+            const data: RedditResponse = await response.json();
+            const posts = data.data.children
+              .filter(item => item.kind === "t3")
+              .map(item => item.data)
+              .filter(post => 
+                post.score > 10 && // Minimum engagement
+                post.upvote_ratio > 0.6 && // Not too controversial
+                !post.title.toLowerCase().includes('[deleted]') &&
+                !post.title.toLowerCase().includes('[removed]')
+              );
+            
+            allPosts.push(...posts);
+            console.log(`Found ${posts.length} quality posts from r/${subreddit}/${endpoint}`);
+          }
         }
       } catch (error) {
         console.error(`Error fetching from r/${subreddit}:`, error);
@@ -72,241 +150,203 @@ serve(async (req) => {
 
     console.log(`Total posts collected: ${allPosts.length}`);
 
-    // Extract and analyze keywords from post titles
-    const keywordCounts: Map<string, { count: number; totalScore: number; posts: number }> = new Map();
+    // Enhanced keyword extraction and analysis
+    const keywordCounts: Map<string, KeywordData> = new Map();
 
-    // Common words to filter out (stop words + reddit-specific)
+    // Expanded stop words list
     const stopWords = new Set([
-      "the",
-      "a",
-      "an",
-      "and",
-      "or",
-      "but",
-      "in",
-      "on",
-      "at",
-      "to",
-      "for",
-      "of",
-      "with",
-      "by",
-      "this",
-      "that",
-      "these",
-      "those",
-      "i",
-      "you",
-      "he",
-      "she",
-      "it",
-      "we",
-      "they",
-      "me",
-      "him",
-      "her",
-      "us",
-      "them",
-      "my",
-      "your",
-      "his",
-      "our",
-      "their",
-      "is",
-      "are",
-      "was",
-      "were",
-      "be",
-      "been",
-      "being",
-      "have",
-      "has",
-      "had",
-      "do",
-      "does",
-      "did",
-      "will",
-      "would",
-      "could",
-      "should",
-      "when",
-      "where",
-      "why",
-      "how",
-      "what",
-      "who",
-      "which",
-      "reddit",
-      "post",
-      "comment",
-      "upvote",
-      "downvote",
-      "karma",
-      "edit",
-      "update",
-      "new",
-      "old",
-      "first",
-      "last",
-      "best",
-      "worst",
-      "good",
-      "bad",
-      "great",
-      "amazing",
-      "awesome",
-      "terrible",
-      "just",
-      "now",
-      "today",
-      "yesterday",
-      "tomorrow",
+      "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by",
+      "this", "that", "these", "those", "i", "you", "he", "she", "it", "we", "they", "me", "him",
+      "her", "us", "them", "my", "your", "his", "our", "their", "is", "are", "was", "were", "be",
+      "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should",
+      "when", "where", "why", "how", "what", "who", "which", "reddit", "post", "comment", "upvote",
+      "downvote", "karma", "edit", "update", "new", "old", "first", "last", "best", "worst", "good",
+      "bad", "great", "amazing", "awesome", "terrible", "just", "now", "today", "yesterday", "tomorrow",
+      "like", "get", "make", "take", "come", "go", "see", "know", "think", "say", "tell", "ask",
+      "give", "use", "find", "work", "call", "try", "need", "feel", "become", "leave", "put", "mean",
+      "keep", "let", "begin", "seem", "help", "talk", "turn", "start", "might", "show", "hear", "play",
+      "run", "move", "live", "believe", "hold", "bring", "happen", "write", "provide", "sit", "stand",
+      "lose", "pay", "meet", "include", "continue", "set", "learn", "change", "lead", "understand",
+      "watch", "follow", "stop", "create", "speak", "read", "allow", "add", "spend", "grow", "open",
+      "walk", "win", "offer", "remember", "love", "consider", "appear", "buy", "wait", "serve", "die",
+      "send", "expect", "build", "stay", "fall", "cut", "reach", "kill", "remain"
     ]);
 
+    // Analyze posts for meme keywords
     allPosts.forEach((post) => {
-      const title = post.data.title.toLowerCase();
+      const title = post.title.toLowerCase();
       const words = title.match(/\b[a-zA-Z]{3,}\b/g) || [];
 
       words.forEach((word) => {
-        if (!stopWords.has(word) && word.length >= 3) {
-          const current = keywordCounts.get(word) || { count: 0, totalScore: 0, posts: 0 };
+        if (!stopWords.has(word) && word.length >= 3 && word.length <= 15) {
+          const current = keywordCounts.get(word) || { 
+            count: 0, 
+            totalScore: 0, 
+            posts: 0, 
+            avgScore: 0, 
+            trendScore: 0 
+          };
+          
           current.count++;
-          current.totalScore += post.data.score;
+          current.totalScore += post.score;
           current.posts++;
+          current.avgScore = current.totalScore / current.posts;
+          
+          // Calculate trend score based on recency and engagement
+          const hoursOld = (Date.now() / 1000 - post.created_utc) / 3600;
+          const recencyBonus = Math.max(0, 24 - hoursOld) / 24; // Bonus for recent posts
+          const engagementScore = post.score * post.upvote_ratio * (post.num_comments / 10);
+          current.trendScore += engagementScore * (1 + recencyBonus);
+          
           keywordCounts.set(word, current);
         }
       });
     });
 
-    // Filter for significant keywords (appeared in multiple posts)
+    // Filter for significant keywords with enhanced criteria
     const significantKeywords = Array.from(keywordCounts.entries())
-      .filter(([_, data]) => data.posts >= 2 && data.count >= 3)
-      .sort((a, b) => b[1].totalScore - a[1].totalScore);
+      .filter(([_, data]) => 
+        data.posts >= 3 && // Appeared in at least 3 posts
+        data.count >= 5 && // Mentioned at least 5 times total
+        data.avgScore >= 20 && // Average post score of 20+
+        data.trendScore >= 100 // Minimum trend score
+      )
+      .sort((a, b) => b[1].trendScore - a[1].trendScore); // Sort by trend score
 
-    console.log(`Found ${significantKeywords.length} significant keywords`);
+    console.log(`Found ${significantKeywords.length} significant trending keywords`);
 
     // Get current meme stocks from database
-    const { data: existingStocks, error: fetchError } = await supabase.from("meme_stocks").select("*");
+    const { data: existingStocks, error: fetchError } = await supabase
+      .from("meme_stocks")
+      .select("*");
 
     if (fetchError) {
       throw new Error(`Error fetching existing stocks: ${fetchError.message}`);
     }
 
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-    // Separate existing stocks into active (less than 1 week old) and expired (more than 1 week old)
-    const activeStocks = existingStocks.filter((stock) => stock.is_active && new Date(stock.created_at) > oneWeekAgo);
-
-    const expiredStocks = existingStocks.filter((stock) => stock.is_active && new Date(stock.created_at) <= oneWeekAgo);
+    const activeStocks = existingStocks.filter(stock => 
+      stock.is_active && new Date(stock.created_at) > oneWeekAgo
+    );
+    const expiredStocks = existingStocks.filter(stock => 
+      stock.is_active && new Date(stock.created_at) <= oneWeekAgo
+    );
 
     console.log(`Active stocks (< 1 week): ${activeStocks.length}`);
     console.log(`Expired stocks (≥ 1 week): ${expiredStocks.length}`);
 
-    // Update values for existing active stocks (but don't change their active status)
-    const existingStocksMap = new Map(activeStocks.map((stock) => [stock.meme_keyword, stock]));
+    let updatedCount = 0;
+    let newStocksCount = 0;
+    let deactivatedCount = 0;
 
+    // Update values for existing active stocks
     for (const stock of activeStocks) {
       const keywordData = keywordCounts.get(stock.meme_keyword);
-
+      
       if (keywordData) {
-        // Calculate new value based on current trending data
-        const calculatedValue = Math.max(10, Math.floor((keywordData.totalScore + keywordData.posts * 10) / 100));
+        // Calculate new value using enhanced formula
+        const baseValue = Math.max(50, Math.floor(keywordData.avgScore * 2));
+        const trendMultiplier = 1 + (keywordData.trendScore / 1000);
+        const volatilityFactor = 0.9 + (Math.random() * 0.2); // ±10% random volatility
+        const newValue = Math.floor(baseValue * trendMultiplier * volatilityFactor);
+        
+        // Ensure reasonable bounds (10-5000)
+        const finalValue = Math.max(10, Math.min(5000, newValue));
 
-        const { error: updateError } = await supabase
-          .from("meme_stocks")
-          .update({
-            current_value: calculatedValue,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", stock.id);
+        // Update stock with history tracking
+        const { error: updateError } = await supabase.rpc("update_stock_history", {
+          p_stock_id: stock.id,
+          p_new_value: finalValue,
+        });
 
-        if (updateError) {
-          console.error(`Error updating stock ${stock.meme_keyword}:`, updateError);
-        } else {
-          console.log(`Updated active stock ${stock.meme_keyword}: ${stock.current_value} -> ${calculatedValue}`);
+        if (!updateError) {
+          updatedCount++;
+          console.log(`Updated ${stock.meme_keyword}: ${stock.current_value} -> ${finalValue} (trend: ${keywordData.trendScore.toFixed(0)})`);
         }
       } else {
-        // Stock keyword not trending anymore, but keep it active until 1 week expires
-        // Just update the timestamp
-        const { error: updateError } = await supabase
-          .from("meme_stocks")
-          .update({
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", stock.id);
-
-        if (updateError) {
-          console.error(`Error updating timestamp for ${stock.meme_keyword}:`, updateError);
-        } else {
-          console.log(`Keeping active stock ${stock.meme_keyword} (not currently trending but < 1 week old)`);
+        // Stock keyword not trending, apply small random volatility
+        const volatilityFactor = 0.95 + (Math.random() * 0.1); // ±5% volatility
+        const newValue = Math.max(10, Math.floor(stock.current_value * volatilityFactor));
+        
+        if (Math.abs(newValue - stock.current_value) > 1) {
+          await supabase.rpc("update_stock_history", {
+            p_stock_id: stock.id,
+            p_new_value: newValue,
+          });
+          updatedCount++;
         }
       }
     }
 
-    // Deactivate expired stocks (older than 1 week)
-    const stocksToDeactivate = expiredStocks;
-    for (const stock of stocksToDeactivate) {
+    // Deactivate expired stocks
+    for (const stock of expiredStocks) {
       const { error: deactivateError } = await supabase
         .from("meme_stocks")
         .update({ is_active: false })
         .eq("id", stock.id);
 
-      if (deactivateError) {
-        console.error(`Error deactivating expired stock ${stock.meme_keyword}:`, deactivateError);
-      } else {
-        console.log(`Deactivated expired stock: ${stock.meme_keyword} (created ${stock.created_at})`);
+      if (!deactivateError) {
+        deactivatedCount++;
+        console.log(`Deactivated expired stock: ${stock.meme_keyword}`);
       }
     }
 
-    // Add new stocks from trending keywords (only if we have space)
-    const currentActiveCount = activeStocks.length - stocksToDeactivate.length; // Active stocks after deactivation
-    const slotsAvailable = Math.max(0, 10 - currentActiveCount); // Target 10 active stocks
+    // Add new trending stocks
+    const currentActiveCount = activeStocks.length - deactivatedCount;
+    const maxStocks = 15; // Increased from 10
+    const slotsAvailable = Math.max(0, maxStocks - currentActiveCount);
 
     if (slotsAvailable > 0) {
-      // Find new keywords that aren't already active stocks
-      const activeKeywords = new Set(activeStocks.map((stock) => stock.meme_keyword));
+      const activeKeywords = new Set(activeStocks.map(stock => stock.meme_keyword));
       const newKeywords = significantKeywords
         .filter(([keyword, _]) => !activeKeywords.has(keyword))
         .slice(0, slotsAvailable);
 
-      console.log(`Adding ${newKeywords.length} new stocks (${slotsAvailable} slots available)`);
-
       for (const [keyword, data] of newKeywords) {
-        const calculatedValue = Math.max(10, Math.floor((data.totalScore + data.posts * 10) / 100));
+        const baseValue = Math.max(50, Math.floor(data.avgScore * 2));
+        const trendMultiplier = 1 + (data.trendScore / 1000);
+        const initialValue = Math.floor(baseValue * trendMultiplier);
+        const finalValue = Math.max(10, Math.min(5000, initialValue));
 
-        const { error: insertError } = await supabase.from("meme_stocks").insert({
-          meme_keyword: keyword,
-          current_value: calculatedValue,
-          is_active: true,
-          history: [{ timestamp: new Date().toISOString(), value: calculatedValue }],
-        });
+        const { error: insertError } = await supabase
+          .from("meme_stocks")
+          .insert({
+            meme_keyword: keyword,
+            current_value: finalValue,
+            is_active: true,
+            history: [{ timestamp: new Date().toISOString(), value: finalValue }],
+          });
 
-        if (insertError) {
-          console.error(`Error creating new stock ${keyword}:`, insertError);
-        } else {
-          console.log(`Created new stock ${keyword}: ${calculatedValue}`);
+        if (!insertError) {
+          newStocksCount++;
+          console.log(`Created new stock ${keyword}: ${finalValue} (trend: ${data.trendScore.toFixed(0)})`);
         }
       }
-    } else {
-      console.log(`No slots available for new stocks (${currentActiveCount}/10 active)`);
     }
+
+    // Apply additional market volatility to create more dynamic pricing
+    const { data: volatilityResult } = await supabase.rpc("apply_market_volatility");
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Meme market updated successfully",
-        active_stocks_before: activeStocks.length,
-        expired_stocks_deactivated: stocksToDeactivate.length,
-        new_stocks_added:
-          slotsAvailable > 0
-            ? Math.min(
-                slotsAvailable,
-                significantKeywords.filter(
-                  ([keyword, _]) => !new Set(activeStocks.map((s) => s.meme_keyword)).has(keyword)
-                ).length
-              )
-            : 0,
-        total_trending_keywords: significantKeywords.length,
+        message: "Meme market updated successfully with enhanced dynamics",
+        stats: {
+          posts_analyzed: allPosts.length,
+          keywords_found: significantKeywords.length,
+          active_stocks_before: activeStocks.length,
+          stocks_updated: updatedCount,
+          new_stocks_added: newStocksCount,
+          expired_stocks_deactivated: deactivatedCount,
+          volatility_updates: volatilityResult?.stocks_updated || 0,
+          current_active_stocks: currentActiveCount + newStocksCount,
+        },
+        trending_keywords: significantKeywords.slice(0, 10).map(([keyword, data]) => ({
+          keyword,
+          trend_score: Math.round(data.trendScore),
+          posts: data.posts,
+          avg_score: Math.round(data.avgScore),
+        })),
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
