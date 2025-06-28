@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { TrendingUp, TrendingDown, Minus, DollarSign, Briefcase, BarChart3, X, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, DollarSign, Briefcase, BarChart3, X, RefreshCw, Clock, Zap } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useProgression } from "../hooks/useProgression";
 import toast from "react-hot-toast";
@@ -48,6 +48,15 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
   const [sellShares, setSellShares] = useState("");
   const [transactionLoading, setTransactionLoading] = useState(false);
   const { awardXP } = useProgression(redditUsername || null);
+
+  // Auto-refresh market data every 2 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchStocks();
+    }, 2 * 60 * 1000); // 2 minutes
+
+    return () => clearInterval(interval);
+  }, [fetchStocks]);
 
   // Fetch active meme stocks
   const fetchStocks = useCallback(async () => {
@@ -102,26 +111,44 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
 
   // Calculate trend for a stock
   const getStockTrend = (stock: MemeStock) => {
-    if (!stock.history || stock.history.length < 2) return "neutral";
+    if (!stock.history || stock.history.length < 2) return { trend: "neutral", percentage: 0 };
 
-    const recent = stock.history.slice(-2);
-    const previousValue = recent[0].value;
-    const currentValue = recent[1].value;
+    // Compare current value with value from 1 hour ago (or latest available)
+    const currentValue = stock.current_value;
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    
+    // Find the closest historical value to 1 hour ago
+    let previousValue = currentValue;
+    for (let i = stock.history.length - 1; i >= 0; i--) {
+      const historyTime = new Date(stock.history[i].timestamp);
+      if (historyTime <= oneHourAgo) {
+        previousValue = stock.history[i].value;
+        break;
+      }
+    }
 
-    if (currentValue > previousValue) return "up";
-    if (currentValue < previousValue) return "down";
-    return "neutral";
+    const percentage = previousValue > 0 ? ((currentValue - previousValue) / previousValue) * 100 : 0;
+
+    if (Math.abs(percentage) < 1) return { trend: "neutral", percentage: 0 };
+    
+    return {
+      trend: currentValue > previousValue ? "up" : "down",
+      percentage: Math.abs(percentage)
+    };
   };
 
-  // Calculate trend percentage
-  const getTrendPercentage = (stock: MemeStock) => {
-    if (!stock.history || stock.history.length < 2) return 0;
+  // Get market volatility indicator
+  const getVolatilityLevel = (stock: MemeStock) => {
+    if (!stock.history || stock.history.length < 5) return "low";
+    
+    const recentValues = stock.history.slice(-5).map(h => h.value);
+    const avg = recentValues.reduce((a, b) => a + b, 0) / recentValues.length;
+    const variance = recentValues.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / recentValues.length;
+    const volatility = Math.sqrt(variance) / avg;
 
-    const recent = stock.history.slice(-2);
-    const previousValue = recent[0].value;
-    const currentValue = recent[1].value;
-
-    return ((currentValue - previousValue) / previousValue) * 100;
+    if (volatility > 0.15) return "high";
+    if (volatility > 0.08) return "medium";
+    return "low";
   };
 
   // Buy stock
@@ -302,12 +329,18 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
       {/* Header */}
       <div className="bg-card rounded-lg border border-border shadow-sm">
         <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">Meme Market</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              <h2 className="text-xl font-semibold">Meme Market</h2>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="w-4 h-4" />
+              <span>Updates every 24h</span>
+            </div>
           </div>
           <p className="text-muted-foreground mt-2">
-            Trade meme stocks based on Reddit trends. Buy low, sell high, profit from viral content!
+            Trade meme stocks based on live Reddit trends. Prices update based on post performance, upvotes, and viral momentum!
           </p>
         </div>
       </div>
@@ -356,25 +389,44 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
                 <div className="text-center py-8">
                   <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No Active Stocks</h3>
-                  <p className="text-muted-foreground">The market is currently being analyzed. Check back soon!</p>
+                  <p className="text-muted-foreground mb-4">The market is currently being analyzed for trending memes.</p>
+                  <button
+                    onClick={updateMarketData}
+                    className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                  >
+                    Scan Reddit for Trends
+                  </button>
                 </div>
               ) : (
                 stocks.map((stock) => {
-                  const trend = getStockTrend(stock);
-                  const trendPercent = getTrendPercentage(stock);
+                  const { trend, percentage } = getStockTrend(stock);
+                  const volatility = getVolatilityLevel(stock);
 
                   return (
                     <div
                       key={stock.id}
                       className="border border-border rounded-lg p-4 hover:shadow-md transition-shadow bg-background"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <div>
-                            <h3 className="font-semibold text-lg">#{stock.meme_keyword}</h3>
-                            <p className="text-sm text-muted-foreground">{stock.current_value} chips per share</p>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-lg">#{stock.meme_keyword}</h3>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                volatility === "high" ? "bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400" :
+                                volatility === "medium" ? "bg-yellow-100 dark:bg-yellow-950 text-yellow-600 dark:text-yellow-400" :
+                                "bg-green-100 dark:bg-green-950 text-green-600 dark:text-green-400"
+                              }`}>
+                                {volatility.toUpperCase()} VOL
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {stock.current_value} chips per share
+                            </p>
                           </div>
-                          <span
+                        </div>
+                        <div className="text-right">
+                          <div
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               trend === "up"
                                 ? "bg-green-100 text-green-800"
@@ -386,8 +438,18 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
                             {trend === "up" && <TrendingUp className="h-3 w-3 mr-1" />}
                             {trend === "down" && <TrendingDown className="h-3 w-3 mr-1" />}
                             {trend === "neutral" && <Minus className="h-3 w-3 mr-1" />}
-                            {trendPercent !== 0 ? `${trendPercent > 0 ? "+" : ""}${trendPercent.toFixed(1)}%` : "0%"}
-                          </span>
+                            {percentage !== 0 ? `${trend === "up" ? "+" : "-"}${percentage.toFixed(1)}%` : "0%"}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Last hour
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Zap className="w-4 h-4" />
+                          <span>Live Reddit data</span>
                         </div>
                         <button
                           onClick={() => setSelectedStock(stock)}
@@ -416,7 +478,13 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
                 <div className="text-center py-8">
                   <Briefcase className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Empty Portfolio</h3>
-                  <p className="text-muted-foreground">You haven't bought any meme stocks yet</p>
+                  <p className="text-muted-foreground mb-4">You haven't bought any meme stocks yet. Start investing in trending memes!</p>
+                  <button
+                    onClick={() => setActiveTab("market")}
+                    className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                  >
+                    Browse Market
+                  </button>
                 </div>
               ) : (
                 <>
@@ -511,6 +579,9 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
                 </button>
               </div>
               <p className="text-muted-foreground mt-2">Current price: {selectedStock.current_value} chips per share</p>
+              <div className="mt-2 text-xs text-muted-foreground">
+                💡 Tip: Prices update every 24 hours based on Reddit post performance
+              </div>
             </div>
             <div className="p-6 space-y-4">
               <div>
@@ -527,6 +598,8 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
                 <p className="text-xs text-muted-foreground mt-1">
                   Available: {player?.points || 0} chips | Shares:{" "}
                   {buyAmount ? Math.floor(parseInt(buyAmount) / selectedStock.current_value) : 0}
+                  <br />
+                  <span className="text-yellow-600">⚠️ Price may change before next market update</span>
                 </p>
               </div>
               <div className="flex gap-2">
