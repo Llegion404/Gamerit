@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Define query parameter interface
+interface UpdateMarketParams {
+  create_new_stocks?: string;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -49,6 +54,16 @@ serve(async (req) => {
   }
 
   try {
+    // Parse query parameters to determine if we should create new stocks
+    const url = new URL(req.url);
+    const params: UpdateMarketParams = {};
+    for (const [key, value] of url.searchParams.entries()) {
+      params[key as keyof UpdateMarketParams] = value;
+    }
+    
+    // Default to not creating new stocks (refresh only)
+    const shouldCreateNewStocks = params.create_new_stocks === 'true';
+    
     // Initialize Supabase client with service role key for admin privileges
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -56,18 +71,18 @@ serve(async (req) => {
     const REDDIT_CLIENT_SECRET = Deno.env.get("REDDIT_CLIENT_SECRET");
 
     if (!REDDIT_CLIENT_ID || !REDDIT_CLIENT_SECRET) {
-      console.log("Reddit credentials not available, applying market volatility only");
+      console.log("Reddit credentials not available, using database refresh function");
       
-      // Apply random market volatility when Reddit data isn't available
+      // Use database function to refresh stocks when Reddit API isn't available
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
-      const { data: volatilityResult } = await supabase.rpc("apply_market_volatility");
+      const { data: refreshResult } = await supabase.rpc("refresh_meme_stocks");
       
       return new Response(
         JSON.stringify({
           success: true,
-          message: "Market volatility applied (Reddit data unavailable)",
-          volatility_applied: true,
-          stocks_updated: volatilityResult?.stocks_updated || 0,
+          message: "Meme stocks refreshed (Reddit data unavailable)",
+          stocks_updated: refreshResult?.stocks_updated || 0,
+          new_stocks_created: 0,
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -78,7 +93,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log("Starting comprehensive meme market update...");
+    console.log(`Starting meme market update... (create_new_stocks=${shouldCreateNewStocks})`);
 
     // Get Reddit access token using client credentials
     const tokenResponse = await fetch("https://www.reddit.com/api/v1/access_token", {
@@ -281,13 +296,19 @@ serve(async (req) => {
     // Deactivate expired stocks
     for (const stock of expiredStocks) {
       const { error: deactivateError } = await supabase
-        .from("meme_stocks")
-        .update({ is_active: false })
-        .eq("id", stock.id);
+        .from("meme_stocks");
+      
+      // Only deactivate if we're in weekly update mode (creating new stocks)
+      if (shouldCreateNewStocks) {
+        await supabase
+          .from("meme_stocks")
+          .update({ is_active: false })
+          .eq("id", stock.id);
 
-      if (!deactivateError) {
-        deactivatedCount++;
-        console.log(`Deactivated expired stock: ${stock.meme_keyword}`);
+        if (!deactivateError) {
+          deactivatedCount++;
+          console.log(`Deactivated expired stock: ${stock.meme_keyword} (created ${stock.created_at})`);
+        }
       }
     }
 
@@ -296,7 +317,8 @@ serve(async (req) => {
     const maxStocks = 15; // Increased from 10
     const slotsAvailable = Math.max(0, maxStocks - currentActiveCount);
 
-    if (slotsAvailable > 0) {
+    // Only create new stocks if explicitly requested (weekly cron job)
+    if (shouldCreateNewStocks && slotsAvailable > 0) {
       const activeKeywords = new Set(activeStocks.map(stock => stock.meme_keyword));
       const newKeywords = significantKeywords
         .filter(([keyword, _]) => !activeKeywords.has(keyword))
@@ -322,24 +344,26 @@ serve(async (req) => {
           console.log(`Created new stock ${keyword}: ${finalValue} (trend: ${data.trendScore.toFixed(0)})`);
         }
       }
+      if (!shouldCreateNewStocks) {
+        console.log("Skipping new stock creation as requested (refresh only)");
+      }
     }
-
-    // Apply additional market volatility to create more dynamic pricing
-    const { data: volatilityResult } = await supabase.rpc("apply_market_volatility");
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Meme market updated successfully with enhanced dynamics",
+        message: shouldCreateNewStocks 
+          ? "Meme market fully updated with new stocks" 
+          : "Existing meme stocks refreshed successfully",
         stats: {
           posts_analyzed: allPosts.length,
           keywords_found: significantKeywords.length,
           active_stocks_before: activeStocks.length,
           stocks_updated: updatedCount,
-          new_stocks_added: newStocksCount,
+          new_stocks_added: shouldCreateNewStocks ? newStocksCount : 0,
           expired_stocks_deactivated: deactivatedCount,
-          volatility_updates: volatilityResult?.stocks_updated || 0,
           current_active_stocks: currentActiveCount + newStocksCount,
+          create_new_stocks_mode: shouldCreateNewStocks,
         },
         trending_keywords: significantKeywords.slice(0, 10).map(([keyword, data]) => ({
           keyword,

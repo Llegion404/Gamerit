@@ -281,12 +281,15 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
   const updateMarketData = async () => {
     setMarketUpdateLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("update-meme-market");
+      // Call the function with create_new_stocks=false to only refresh existing stocks
+      const { data, error } = await supabase.functions.invoke("update-meme-market", {
+        queryParams: { create_new_stocks: 'false' }
+      });
 
       if (error) throw error;
 
       if (data?.success) {
-        toast.success("Market data updated successfully!");
+        toast.success("Market data refreshed successfully!");
         await fetchStocks(); // Refresh stocks after update
       } else {
         throw new Error(data?.error || "Failed to update market");
@@ -333,14 +336,17 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
             <div className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
               <h2 className="text-xl font-semibold">Meme Market</h2>
+              <span className="ml-2 text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full">
+                Real Data
+              </span>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
-              <span>Updates every 24h</span>
+              <span>New stocks weekly • Prices update daily</span>
             </div>
           </div>
           <p className="text-muted-foreground mt-2">
-            Trade meme stocks based on live Reddit trends. Prices update based on post performance, upvotes, and viral momentum!
+            Trade meme stocks based on real Reddit trends. Prices reflect actual post performance, upvotes, and viral momentum!
           </p>
         </div>
       </div>
@@ -374,10 +380,10 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
             <button
               onClick={updateMarketData}
               disabled={marketUpdateLoading}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw className={`h-4 w-4 ${marketUpdateLoading ? "animate-spin" : ""}`} />
-              {marketUpdateLoading ? "Updating..." : "Update Market"}
+              {marketUpdateLoading ? "Refreshing..." : "Refresh Prices"}
             </button>
           </div>
         </div>
@@ -389,12 +395,12 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
                 <div className="text-center py-8">
                   <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No Active Stocks</h3>
-                  <p className="text-muted-foreground mb-4">The market is currently being analyzed for trending memes.</p>
+                  <p className="text-muted-foreground mb-4">The market is currently empty. New stocks are added weekly based on trending Reddit content.</p>
                   <button
                     onClick={updateMarketData}
                     className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
                   >
-                    Scan Reddit for Trends
+                    Refresh Market Data
                   </button>
                 </div>
               ) : (
@@ -449,7 +455,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Zap className="w-4 h-4" />
-                          <span>Live Reddit data</span>
+                          <span>Real Reddit trends</span>
                         </div>
                         <button
                           onClick={() => setSelectedStock(stock)}
@@ -580,7 +586,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
               </div>
               <p className="text-muted-foreground mt-2">Current price: {selectedStock.current_value} chips per share</p>
               <div className="mt-2 text-xs text-muted-foreground">
-                💡 Tip: Prices update every 24 hours based on Reddit post performance
+                💡 Tip: Prices update based on real Reddit engagement metrics
               </div>
             </div>
             <div className="p-6 space-y-4">
