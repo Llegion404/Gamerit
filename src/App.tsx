@@ -230,6 +230,7 @@ function App() {
             <p>• Reddit Battles: Bet on post performance and win big</p>
             <p>• Meme Market: Trade trending keywords like stocks</p>
             <p>• Archaeology: Discover the deepest comment chains</p>
+            <p>• Reddit Oracle: Ask questions and receive mystical wisdom from random Reddit comments</p>
             <p>• Progression: Level up and unlock achievements as you play</p>
             <p>• Start with 1,000 free Karma Chips • Claim 50 welfare chips daily when broke</p>
           </div>
