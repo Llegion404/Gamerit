@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { TrendingUp, TrendingDown, Minus, DollarSign, Briefcase, BarChart3, X, RefreshCw, Clock, Zap } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { MemeNewsTicker } from "./MemeNewsTicker";
 import { useProgression } from "../hooks/useProgression";
 import toast from "react-hot-toast";
 
@@ -330,6 +331,8 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
   return (
     <div className="space-y-6">
       {/* Header */}
+      <MemeNewsTicker />
+      
       <div className="bg-card rounded-lg border border-border shadow-sm">
         <div className="p-6 border-b border-border">
           <div className="flex items-center justify-between">
