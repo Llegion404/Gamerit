@@ -63,17 +63,21 @@ serve(async (req) => {
   try {
     const { subreddits, player_id } = await req.json();
 
-    console.log("Received request:", { subreddits, player_id });
-    console.log("Subreddits type:", typeof subreddits);
-    console.log("Subreddits value:", JSON.stringify(subreddits));
-    console.log("Is array:", Array.isArray(subreddits));
-    console.log("Length:", subreddits?.length);
+    console.log("Fetch radio content - Received request:", { 
+      subreddits: subreddits, 
+      player_id: player_id,
+      subreddits_type: typeof subreddits,
+      is_array: Array.isArray(subreddits),
+      length: subreddits?.length 
+    });
 
     if (!subreddits || !Array.isArray(subreddits) || subreddits.length === 0) {
-      console.log("Invalid subreddits validation failed:");
-      console.log("- subreddits exists:", !!subreddits);
-      console.log("- is array:", Array.isArray(subreddits));
-      console.log("- has length:", subreddits?.length > 0);
+      console.error("Invalid subreddits validation failed:", {
+        exists: !!subreddits,
+        is_array: Array.isArray(subreddits),
+        has_length: subreddits?.length > 0,
+        actual_value: subreddits
+      });
       return new Response(
         JSON.stringify({
           error: "Invalid subreddits list",
@@ -109,7 +113,7 @@ serve(async (req) => {
 
       try {
         // Fetch hot posts
-        const postsUrl = `https://www.reddit.com/r/${subreddit}/hot.json?limit=10`;
+        const postsUrl = `https://www.reddit.com/r/${subreddit}/hot.json?limit=25`;
         console.log(`Fetching from: ${postsUrl}`);
 
         const postsResponse = await fetch(postsUrl, {
@@ -127,23 +131,21 @@ serve(async (req) => {
           for (const item of postsData.data.children) {
             const post = item as RedditPost;
 
-            console.log(`Checking post: ${post.data.title} (score: ${post.data.score}, author: ${post.data.author})`);
-
             // Filter out removed/deleted posts and ensure we have content
-            // Lowered score threshold from 5 to 1 for better content discovery
+            // Use a reasonable score threshold for quality content
             if (
               post.data.author !== "[deleted]" &&
               post.data.title &&
               post.data.title !== "[removed]" &&
-              post.data.score > 1 // Lowered from 5 to 1
+              post.data.score > 5 &&
+              post.data.title.length > 10 // Ensure substantial titles
             ) {
-              console.log(`Adding post: ${post.data.title}`);
               subredditPosts++;
 
               // Create content from post title and text
               let text = post.data.title;
               if (post.data.selftext && post.data.selftext.length > 0 && post.data.selftext !== "[removed]") {
-                text += ". " + post.data.selftext.substring(0, 500); // Limit length
+                text += ". " + post.data.selftext.substring(0, 300); // Limit length for TTS
               }
 
               allContent.push({
@@ -160,7 +162,7 @@ serve(async (req) => {
               if (post.data.num_comments > 10) {
                 try {
                   const commentsResponse = await fetch(
-                    `https://www.reddit.com/r/${subreddit}/comments/${post.data.id}.json?limit=5`,
+                    `https://www.reddit.com/r/${subreddit}/comments/${post.data.id}.json?limit=3`,
                     {
                       headers: {
                         "User-Agent": "RedditRadio/1.0",
@@ -172,8 +174,8 @@ serve(async (req) => {
                     const commentsData = await commentsResponse.json();
                     const comments = commentsData[1]?.data?.children || [];
 
-                    for (const commentItem of comments.slice(0, 3)) {
-                      // Top 3 comments
+                    for (const commentItem of comments.slice(0, 2)) {
+                      // Top 2 comments to avoid too much content
                       const comment = commentItem as RedditComment;
 
                       if (
@@ -183,7 +185,6 @@ serve(async (req) => {
                         comment.data.body.length > 20 &&
                         comment.data.score > 2
                       ) {
-                        console.log(`Adding comment by ${comment.data.author} (score: ${comment.data.score})`);
                         subredditComments++;
 
                         allContent.push({
@@ -201,12 +202,10 @@ serve(async (req) => {
                   console.error(`Error fetching comments for post ${post.data.id}:`, error);
                 }
               }
-            } else {
-              console.log(
-                `Filtered out post: ${post.data.title} (author: ${post.data.author}, score: ${post.data.score})`
-              );
             }
           }
+        } else {
+          console.error(`Failed to fetch from r/${subreddit}: ${postsResponse.status}`);
         }
       } catch (error) {
         console.error(`Error fetching from r/${subreddit}:`, error);
@@ -225,17 +224,16 @@ serve(async (req) => {
 
     // Sort content by score (highest first) and limit to reasonable amount
     allContent.sort((a, b) => b.score - a.score);
-    const limitedContent = allContent.slice(0, 50); // Limit to 50 items
+    const limitedContent = allContent.slice(0, 30); // Limit to 30 items for better performance
 
     console.log(`Collected ${limitedContent.length} content items total`);
-    console.log("Debug info:", debugInfo);
 
     return new Response(
       JSON.stringify({
         success: true,
         content: limitedContent,
         total_items: limitedContent.length,
-        debug: debugInfo, // Include debug info in response
+        debug: debugInfo,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -247,7 +245,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: error.message || "Unknown error occurred",
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

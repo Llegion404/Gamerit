@@ -48,18 +48,30 @@ serve(async (req: Request) => {
     // Get ElevenLabs API key from environment
     const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
 
-    console.log("ElevenLabs API key exists:", !!ELEVENLABS_API_KEY);
+    console.log("Fetching voices - ElevenLabs API key exists:", !!ELEVENLABS_API_KEY);
 
     if (!ELEVENLABS_API_KEY) {
       console.error("ElevenLabs API key not found in environment");
-      return new Response(JSON.stringify({ error: "ElevenLabs API key not configured" }), {
+      
+      // Return default voices if API key is not available
+      const defaultVoices = [
+        { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", description: "Calm, friendly female voice", category: "premade" },
+        { id: "AZnzlk1XvdvUeBnXmlld", name: "Domi", description: "Strong, confident female voice", category: "premade" },
+        { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella", description: "Sweet, young female voice", category: "premade" },
+        { id: "ErXwobaYiN019PkySvjV", name: "Antoni", description: "Well-rounded male voice", category: "premade" },
+        { id: "VR6AewLTigWG4xSOukaG", name: "Arnold", description: "Crisp, authoritative male voice", category: "premade" },
+        { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", description: "Deep, mature male voice", category: "premade" },
+        { id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam", description: "Casual, friendly male voice", category: "premade" },
+      ];
+      
+      return new Response(JSON.stringify({ voices: defaultVoices }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Fetch available voices from ElevenLabs
-    console.log("Attempting to fetch voices from ElevenLabs API");
+    console.log("Fetching voices from ElevenLabs API");
     const response = await fetch("https://api.elevenlabs.io/v1/voices", {
       headers: {
         "xi-api-key": ELEVENLABS_API_KEY,
@@ -72,7 +84,23 @@ serve(async (req: Request) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("ElevenLabs API error:", response.status, errorText);
-      throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
+      
+      // Fall back to default voices if API fails
+      const defaultVoices = [
+        { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", description: "Calm, friendly female voice", category: "premade" },
+        { id: "AZnzlk1XvdvUeBnXmlld", name: "Domi", description: "Strong, confident female voice", category: "premade" },
+        { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella", description: "Sweet, young female voice", category: "premade" },
+        { id: "ErXwobaYiN019PkySvjV", name: "Antoni", description: "Well-rounded male voice", category: "premade" },
+        { id: "VR6AewLTigWG4xSOukaG", name: "Arnold", description: "Crisp, authoritative male voice", category: "premade" },
+        { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", description: "Deep, mature male voice", category: "premade" },
+        { id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam", description: "Casual, friendly male voice", category: "premade" },
+      ];
+      
+      console.log("Using default voices due to API error");
+      return new Response(JSON.stringify({ voices: defaultVoices }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const data = await response.json();
@@ -98,19 +126,31 @@ serve(async (req: Request) => {
       return a.name.localeCompare(b.name);
     });
 
+    console.log(`Successfully fetched ${sortedVoices.length} voices`);
     return new Response(JSON.stringify({ voices: sortedVoices }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error fetching voices:", error);
+    
+    // Return default voices as fallback
+    const defaultVoices = [
+      { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", description: "Calm, friendly female voice", category: "premade" },
+      { id: "AZnzlk1XvdvUeBnXmlld", name: "Domi", description: "Strong, confident female voice", category: "premade" },
+      { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella", description: "Sweet, young female voice", category: "premade" },
+      { id: "ErXwobaYiN019PkySvjV", name: "Antoni", description: "Well-rounded male voice", category: "premade" },
+      { id: "VR6AewLTigWG4xSOukaG", name: "Arnold", description: "Crisp, authoritative male voice", category: "premade" },
+      { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", description: "Deep, mature male voice", category: "premade" },
+      { id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam", description: "Casual, friendly male voice", category: "premade" },
+    ];
+    
     return new Response(
       JSON.stringify({
-        error: "Failed to fetch voices",
-        details: error.message,
+        voices: defaultVoices,
       }),
       {
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );

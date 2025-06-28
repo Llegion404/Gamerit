@@ -75,16 +75,25 @@ export function RedditRadio() {
 
   // Load user's radio stations
   const loadStations = useCallback(async () => {
-    if (!player) return;
+    if (!player) {
+      console.log("No player found, skipping station load");
+      return;
+    }
 
     try {
+      console.log("Loading stations for player:", player.id);
       const { data, error } = await supabase
         .from("radio_stations")
         .select("*")
         .eq("player_id", player.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error loading stations:", error);
+        throw error;
+      }
+      
+      console.log("Loaded stations:", data);
       setStations(data || []);
     } catch (error) {
       console.error("Error loading stations:", error);
@@ -177,10 +186,17 @@ export function RedditRadio() {
 
   // Create new radio station
   const createStation = async () => {
-    if (!player || !newStationName.trim() || newStationSubreddits.length === 0 || !selectedVoice) {
+    if (!player || !newStationName.trim() || newStationSubreddits.length === 0) {
       toast.error("Please provide a station name and at least one subreddit");
       return;
     }
+
+    console.log("Creating station with data:", {
+      name: newStationName.trim(),
+      subreddits: newStationSubreddits,
+      voice_id: selectedVoice,
+      player_id: player.id,
+    });
 
     try {
       const { data, error } = await supabase
@@ -194,8 +210,12 @@ export function RedditRadio() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error creating station:", error);
+        throw error;
+      }
 
+      console.log("Station created successfully:", data);
       setStations((prev) => [data, ...prev]);
       setNewStationName("");
       setNewStationSubreddits([]);
@@ -242,17 +262,13 @@ export function RedditRadio() {
 
   // Start playing a station
   const startStation = async (station: RadioStation) => {
+    console.log("Starting station:", station);
     setLoading(true);
     setActiveStation(station);
 
     try {
-      // Debug the station data before sending
-      console.log("Opening station:", station);
-      console.log("Station subreddits:", station.subreddits);
-      console.log("Subreddits type:", typeof station.subreddits);
-      console.log("Is array:", Array.isArray(station.subreddits));
-
       // Fetch content from Reddit for this station
+      console.log("Fetching content for subreddits:", station.subreddits);
       const { data, error } = await supabase.functions.invoke("fetch-radio-content", {
         body: {
           subreddits: station.subreddits,
@@ -260,11 +276,12 @@ export function RedditRadio() {
         },
       });
 
-      console.log("Function response:", { data, error });
+      console.log("Fetch content response:", { data, error });
 
       if (error) throw error;
 
       if (data?.content && data.content.length > 0) {
+        console.log(`Received ${data.content.length} content items`);
         setPlaybackState((prev) => ({
           ...prev,
           queue: data.content,
@@ -274,6 +291,7 @@ export function RedditRadio() {
         // Generate audio for first content item
         await generateAudio(data.content[0]);
       } else {
+        console.log("No content found in response:", data);
         toast.error("No content found for this station");
       }
     } catch (error) {
@@ -286,6 +304,7 @@ export function RedditRadio() {
 
   // Generate audio using ElevenLabs
   const generateAudio = async (content: RadioContent) => {
+    console.log("Generating audio for content:", content.id);
     try {
       const { data, error } = await supabase.functions.invoke("generate-radio-audio", {
         body: {
@@ -298,6 +317,7 @@ export function RedditRadio() {
       if (error) throw error;
 
       if (data?.audio_url) {
+        console.log("Audio generated successfully");
         setPlaybackState((prev) => ({
           ...prev,
           currentContent: { ...content, audio_url: data.audio_url },
@@ -309,6 +329,9 @@ export function RedditRadio() {
           audioRef.current.play();
           setPlaybackState((prev) => ({ ...prev, isPlaying: true }));
         }
+      } else {
+        console.log("No audio URL in response:", data);
+        toast.error("Failed to generate audio");
       }
     } catch (error) {
       console.error("Error generating audio:", error);
@@ -318,6 +341,7 @@ export function RedditRadio() {
 
   // Play/pause controls
   const togglePlayback = () => {
+    console.log("Toggling playback, current state:", playbackState.isPlaying);
     if (!audioRef.current) return;
 
     if (playbackState.isPlaying) {
@@ -331,6 +355,7 @@ export function RedditRadio() {
 
   // Skip to next content
   const skipToNext = async () => {
+    console.log("Skipping to next content");
     const currentIndex = playbackState.queue.findIndex((item) => item.id === playbackState.currentContent?.id);
 
     if (currentIndex < playbackState.queue.length - 1) {
@@ -339,6 +364,7 @@ export function RedditRadio() {
       await generateAudio(nextContent);
     } else {
       // End of queue - could fetch more content here
+      console.log("End of queue reached");
       toast("End of queue reached");
       setPlaybackState((prev) => ({ ...prev, isPlaying: false }));
     }
@@ -362,6 +388,7 @@ export function RedditRadio() {
 
   // Audio event handlers
   const handleAudioEnded = () => {
+    console.log("Audio ended, skipping to next");
     skipToNext();
   };
 
@@ -518,7 +545,7 @@ export function RedditRadio() {
                 </div>
                 <div className="space-y-1">
                   {station.subreddits.slice(0, 3).map((subreddit) => (
-                    <div key={subreddit} className="text-sm text-muted-foreground">
+                    <div key={subreddit} className="text-sm text-muted-foreground truncate">
                       r/{subreddit}
                     </div>
                   ))}
