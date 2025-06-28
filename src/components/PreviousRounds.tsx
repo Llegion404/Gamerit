@@ -1,11 +1,46 @@
 import { Clock, Trophy } from "lucide-react";
 import { GameRound } from "../lib/supabase";
+import { useAuth } from "../hooks/useAuth";
+import { useGameData } from "../hooks/useGameData";
+import { useState, useEffect } from "react";
 
 interface PreviousRoundsProps {
   rounds: GameRound[];
 }
 
+interface UserBet {
+  id: string;
+  bet_on: "A" | "B";
+  amount: number;
+}
 export function PreviousRounds({ rounds }: PreviousRoundsProps) {
+  const { player } = useAuth();
+  const { getUserBets } = useGameData();
+  const [userBets, setUserBets] = useState<Record<string, UserBet>>({});
+
+  useEffect(() => {
+    const fetchUserBets = async () => {
+      if (!player) return;
+
+      const betsMap: Record<string, UserBet> = {};
+      
+      for (const round of rounds) {
+        try {
+          const bets = await getUserBets(player.id, round.id);
+          if (bets.length > 0) {
+            betsMap[round.id] = bets[0];
+          }
+        } catch (error) {
+          console.error(`Failed to fetch bets for round ${round.id}:`, error);
+        }
+      }
+      
+      setUserBets(betsMap);
+    };
+
+    fetchUserBets();
+  }, [player, rounds, getUserBets]);
+
   const formatDate = (timestamp: string) => {
     return new Date(timestamp).toLocaleDateString("en-US", {
       month: "short",
@@ -52,7 +87,19 @@ export function PreviousRounds({ rounds }: PreviousRoundsProps) {
                   round.winner === "A" ? "bg-primary/10 border border-primary/20" : "bg-secondary"
                 }`}
               >
-                <div className="text-primary font-medium text-xs sm:text-sm">r/{round.post_a_subreddit}</div>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-primary font-medium text-xs sm:text-sm">r/{round.post_a_subreddit}</div>
+                  {userBets[round.id]?.bet_on === "A" && (
+                    <div className="flex items-center space-x-1">
+                      <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium">
+                        Your Bet
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {userBets[round.id].amount} chips
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <div className="text-muted-foreground line-clamp-2 text-xs">{round.post_a_title}</div>
                 <div className="font-medium text-xs sm:text-sm mt-1">
                   {round.post_a_initial_score} → {round.post_a_final_score}
@@ -64,7 +111,19 @@ export function PreviousRounds({ rounds }: PreviousRoundsProps) {
                   round.winner === "B" ? "bg-primary/10 border border-primary/20" : "bg-secondary"
                 }`}
               >
-                <div className="text-primary font-medium text-xs sm:text-sm">r/{round.post_b_subreddit}</div>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-primary font-medium text-xs sm:text-sm">r/{round.post_b_subreddit}</div>
+                  {userBets[round.id]?.bet_on === "B" && (
+                    <div className="flex items-center space-x-1">
+                      <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium">
+                        Your Bet
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {userBets[round.id].amount} chips
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <div className="text-muted-foreground line-clamp-2 text-xs">{round.post_b_title}</div>
                 <div className="font-medium text-xs sm:text-sm mt-1">
                   {round.post_b_initial_score} → {round.post_b_final_score}
