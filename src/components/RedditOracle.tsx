@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Crystal, Sparkles, RefreshCw, MessageCircle, Zap, Eye } from "lucide-react";
+import { Italic as Crystal, Sparkles, RefreshCw, MessageCircle, Zap, Eye } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { useProgression } from "../hooks/useProgression";
