@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GameRound as GameRoundComponent } from "./GameRound";
 import { GameRound as GameRoundType, Player } from "../lib/supabase";
 import { RedditUser } from "../lib/reddit-auth";
@@ -22,6 +22,20 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
   const [activeTab, setActiveTab] = useState(0);
   const [lastActiveRoundId, setLastActiveRoundId] = useState<string | null>(null);
 
+  // Listen for round creation events to refresh data
+  useEffect(() => {
+    const handleRoundCreated = (event: CustomEvent) => {
+      console.log("Round created event received in MultiBattle:", event.detail);
+      // Refresh data when a new round is created
+      refreshData();
+    };
+
+    window.addEventListener('roundCreated', handleRoundCreated as EventListener);
+
+    return () => {
+      window.removeEventListener('roundCreated', handleRoundCreated as EventListener);
+    };
+  }, [refreshData]);
   if (!rounds || rounds.length === 0) {
     return (
       <div className="bg-card border border-border rounded-lg p-6 text-center">

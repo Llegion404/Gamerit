@@ -6,6 +6,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 const POLLING_INTERVAL_MS = 30000; // 30 seconds
 const PREVIOUS_ROUNDS_LIMIT = 10;
 const LEADERBOARD_LIMIT = 10;
+const REACTIVE_REFRESH_DELAY = 1000; // 1 second delay for reactive refresh
 
 // Global subscription manager to prevent duplicate subscriptions
 class SubscriptionManager {
@@ -42,26 +43,35 @@ class SubscriptionManager {
       return; // Already set up
     }
 
+    console.log("Setting up real-time subscriptions for game data");
+
     this.roundsSubscription = supabase
       .channel(`game_rounds_global_${Date.now()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "game_rounds" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "game_rounds" }, (payload) => {
+        console.log("Game rounds change detected:", payload);
         this.notifySubscribers();
       })
       .subscribe();
 
     this.playersSubscription = supabase
       .channel(`players_global_${Date.now()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "players" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "players" }, (payload) => {
+        console.log("Players change detected:", payload);
         this.notifySubscribers();
       })
       .subscribe();
   }
 
   private notifySubscribers() {
-    this.subscribers.forEach((callback) => callback());
+    console.log(`Notifying ${this.subscribers.size} subscribers of data changes`);
+    // Add a small delay to ensure database consistency
+    setTimeout(() => {
+      this.subscribers.forEach((callback) => callback());
+    }, REACTIVE_REFRESH_DELAY);
   }
 
   private cleanup() {
+    console.log("Cleaning up real-time subscriptions");
     if (this.roundsSubscription) {
       supabase.removeChannel(this.roundsSubscription);
       this.roundsSubscription = null;
@@ -84,9 +94,11 @@ export function useGameData() {
   const [previousRounds, setPreviousRounds] = useState<GameRound[]>([]);
   const [leaderboard, setLeaderboard] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
 
   const fetchCurrentRounds = useCallback(async () => {
     try {
+      console.log("Fetching current rounds...");
       const { data, error } = await supabase
         .from("game_rounds")
         .select("*")
@@ -94,13 +106,17 @@ export function useGameData() {
         .order("created_at", { ascending: false });
 
       if (!error && data) {
+        console.log(`Found ${data.length} active rounds`);
         setCurrentRounds(data);
         setCurrentRound(data[0] || null); // Set first round for backward compatibility
+        setLastRefreshTime(Date.now());
       } else {
+        console.log("No active rounds found or error occurred:", error);
         setCurrentRounds([]);
         setCurrentRound(null);
       }
-    } catch {
+    } catch (error) {
+      console.error("Error fetching current rounds:", error);
       setCurrentRounds([]);
       setCurrentRound(null);
     }
@@ -113,6 +129,7 @@ export function useGameData() {
 
   const fetchPreviousRounds = useCallback(async () => {
     try {
+      console.log("Fetching previous rounds...");
       const { data, error } = await supabase
         .from("game_rounds")
         .select("*")
@@ -121,15 +138,18 @@ export function useGameData() {
         .limit(PREVIOUS_ROUNDS_LIMIT);
 
       if (!error && data) {
+        console.log(`Found ${data.length} previous rounds`);
         setPreviousRounds(data);
       }
-    } catch {
+    } catch (error) {
+      console.error("Error fetching previous rounds:", error);
       setPreviousRounds([]);
     }
   }, []);
 
   const fetchLeaderboard = useCallback(async () => {
     try {
+      console.log("Fetching leaderboard...");
       const { data, error } = await supabase
         .from("players")
         .select("*")
@@ -137,9 +157,11 @@ export function useGameData() {
         .limit(LEADERBOARD_LIMIT);
 
       if (!error && data) {
+        console.log(`Found ${data.length} players in leaderboard`);
         setLeaderboard(data);
       }
-    } catch {
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
       setLeaderboard([]);
     }
   }, []);
@@ -176,6 +198,7 @@ export function useGameData() {
 
   const updateCurrentScores = async () => {
     try {
+      console.log("Updating current scores...");
       const { data, error } = await supabase.functions.invoke("update-current-scores", {
         method: "POST",
       });
@@ -185,6 +208,7 @@ export function useGameData() {
         throw error;
       }
 
+      console.log("Scores updated successfully, refreshing data...");
       // Refresh current round data after score update
       await fetchCurrentRound();
       return data;
@@ -196,9 +220,11 @@ export function useGameData() {
 
   useEffect(() => {
     const loadData = async () => {
+      console.log("Initial data load starting...");
       setLoading(true);
       await Promise.all([fetchCurrentRound(), fetchPreviousRounds(), fetchLeaderboard()]);
       setLoading(false);
+      console.log("Initial data load completed");
     };
 
     loadData();
@@ -206,6 +232,7 @@ export function useGameData() {
     // Use subscription manager to prevent duplicate subscriptions
     const subscriptionManager = SubscriptionManager.getInstance();
     const refreshCallback = () => {
+      console.log("Real-time refresh triggered");
       fetchCurrentRound();
       fetchPreviousRounds();
       fetchLeaderboard();
@@ -215,6 +242,7 @@ export function useGameData() {
 
     // Add polling as backup (every 30 seconds)
     const pollingInterval = setInterval(() => {
+      console.log("Polling refresh triggered");
       fetchCurrentRound();
       fetchPreviousRounds();
       fetchLeaderboard();
@@ -227,6 +255,7 @@ export function useGameData() {
   }, [fetchCurrentRound, fetchPreviousRounds, fetchLeaderboard]);
 
   const refreshData = useCallback(() => {
+    console.log("Manual refresh triggered");
     fetchCurrentRound();
     fetchPreviousRounds();
     fetchLeaderboard();
@@ -238,6 +267,7 @@ export function useGameData() {
     previousRounds,
     leaderboard,
     loading,
+    lastRefreshTime,
     placeBet,
     getUserBets,
     updateCurrentScores,

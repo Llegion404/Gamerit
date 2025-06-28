@@ -25,6 +25,7 @@ function App() {
     previousRounds,
     leaderboard,
     loading: dataLoading,
+    lastRefreshTime,
     placeBet,
     getUserBets,
     refreshData,
@@ -37,6 +38,28 @@ function App() {
   // Start automatic round management
   useRoundManager();
 
+  // Listen for round creation events and show notifications
+  useEffect(() => {
+    const handleRoundCreated = (event: CustomEvent) => {
+      console.log("Round created event received in App:", event.detail);
+      if (activeGame === "reddit-battles") {
+        toast.success("New battle created! 🎯", {
+          duration: 3000,
+          style: {
+            background: "hsl(var(--card))",
+            color: "hsl(var(--card-foreground))",
+            border: "1px solid hsl(var(--border))",
+          },
+        });
+      }
+    };
+
+    window.addEventListener('roundCreated', handleRoundCreated as EventListener);
+
+    return () => {
+      window.removeEventListener('roundCreated', handleRoundCreated as EventListener);
+    };
+  }, [activeGame]);
   useEffect(() => {
     // Check if player can claim welfare chips
     if (player) {

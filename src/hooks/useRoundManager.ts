@@ -71,6 +71,8 @@ export function useRoundManager() {
             try {
               await createNewRound();
               console.log(`Created round ${i + 1}/${roundsToCreate}`);
+              // Add a small delay between round creations to prevent overwhelming the system
+              await new Promise(resolve => setTimeout(resolve, 500));
             } catch (error) {
               console.error(`Failed to create round ${i + 1}:`, error);
               break; // Stop creating more rounds if one fails
@@ -90,6 +92,8 @@ export function useRoundManager() {
             try {
               await createNewRound();
               console.log(`Created additional round ${i + 1}/${roundsToCreate}`);
+              // Add a small delay between round creations
+              await new Promise(resolve => setTimeout(resolve, 500));
             } catch (error) {
               console.error(`Failed to create additional round ${i + 1}:`, error);
               break;
@@ -143,6 +147,15 @@ export function useRoundManager() {
       }
 
       console.log("New round created successfully:", data);
+      
+      // Trigger a manual refresh of the UI data after successful round creation
+      // This ensures the UI updates immediately after round creation
+      setTimeout(() => {
+        console.log("Triggering UI refresh after round creation");
+        // Emit a custom event that the UI can listen to
+        window.dispatchEvent(new CustomEvent('roundCreated', { detail: data }));
+      }, 1000); // 1 second delay to ensure database consistency
+      
       return data;
     } catch (error) {
       console.error("Failed to create new round:", error);
