@@ -49,15 +49,6 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
   const [transactionLoading, setTransactionLoading] = useState(false);
   const { awardXP } = useProgression(redditUsername || null);
 
-  // Auto-refresh market data every 2 minutes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchStocks();
-    }, 2 * 60 * 1000); // 2 minutes
-
-    return () => clearInterval(interval);
-  }, [fetchStocks]);
-
   // Fetch active meme stocks
   const fetchStocks = useCallback(async () => {
     try {
@@ -74,6 +65,15 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
       toast.error("Failed to load meme stocks");
     }
   }, []);
+
+  // Auto-refresh market data every 2 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchStocks();
+    }, 2 * 60 * 1000); // 2 minutes
+
+    return () => clearInterval(interval);
+  }, [fetchStocks]);
 
   // Fetch player portfolio
   const fetchPortfolio = useCallback(async () => {
