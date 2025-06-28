@@ -275,7 +275,7 @@ export function HotPotatoBetting({ player, redditUser, onRefreshPlayer }: HotPot
           </button>
         </div>
         <div className="mt-3 text-sm text-muted-foreground">
-          <p>🤖 Hot potato rounds are created automatically every 10 minutes</p>
+          <p>🤖 Hot potato rounds are created automatically every 5 hours</p>
           <p>🔥 Controversial posts are selected based on Reddit engagement patterns</p>
         </div>
       </div>
@@ -299,7 +299,7 @@ export function HotPotatoBetting({ player, redditUser, onRefreshPlayer }: HotPot
               Create Round Now
             </button>
             <p className="text-xs text-muted-foreground mt-2">
-              Or wait for automatic creation (every 10 minutes)
+              Or wait for automatic creation (every 5 hours)
             </p>
           </div>
         ) : (

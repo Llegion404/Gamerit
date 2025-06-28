@@ -128,7 +128,7 @@ export function useHotPotatoManager() {
       checkAndManageHotPotatoRounds().catch((error) => {
         console.error("Scheduled hot potato round management check failed:", error);
       });
-    }, 10 * 60 * 1000); // 10 minutes
+    }, 5 * 60 * 60 * 1000); // 5 hours
   }, [checkAndManageHotPotatoRounds]);
 
   const stopHotPotatoMonitoring = useCallback(() => {
