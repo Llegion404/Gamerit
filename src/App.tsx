@@ -11,6 +11,7 @@ import AchievementNotification from "./components/AchievementNotification";
 import { useAuth } from "./hooks/useAuth";
 import { useGameData } from "./hooks/useGameData";
 import { useRoundManager } from "./hooks/useRoundManager";
+import { useHotPotatoManager } from "./hooks/useHotPotatoManager";
 import { useProgression } from "./hooks/useProgression";
 import { Loader2 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
@@ -37,6 +38,7 @@ function App() {
 
   // Start automatic round management
   useRoundManager();
+  useHotPotatoManager();
 
   // Listen for round creation events and show notifications
   useEffect(() => {

@@ -81,6 +81,7 @@ serve(async (req) => {
 
     let deletedCount = 0;
     let updatedCount = 0;
+    let expiredCount = 0;
 
     for (const round of activeRounds) {
       try {
@@ -118,8 +119,9 @@ serve(async (req) => {
       }
     }
 
-    // Also resolve any expired rounds
+    // Resolve any expired rounds (older than 48 hours)
     const { data: resolveResult } = await supabase.rpc("resolve_hot_potato_rounds");
+    expiredCount = resolveResult?.resolved_rounds || 0;
 
     return new Response(
       JSON.stringify({
@@ -128,7 +130,7 @@ serve(async (req) => {
         checked_rounds: activeRounds.length,
         deleted_posts: deletedCount,
         updated_posts: updatedCount,
-        resolved_expired: resolveResult?.resolved_rounds || 0,
+        resolved_expired: expiredCount,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -58,6 +58,29 @@ serve(async (req) => {
 
     console.log("Creating hot potato round...");
 
+    // Check if we already have enough active rounds
+    const { data: existingRounds, error: checkError } = await supabase
+      .from("hot_potato_rounds")
+      .select("id")
+      .eq("status", "active");
+
+    if (checkError) {
+      console.error("Error checking existing rounds:", checkError);
+    } else if (existingRounds && existingRounds.length >= 5) {
+      console.log(`Already have ${existingRounds.length} active rounds, skipping creation`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Maximum active rounds reached",
+          active_rounds: existingRounds.length,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
+    }
+
     // Get Reddit access token
     const tokenResponse = await fetch("https://www.reddit.com/api/v1/access_token", {
       method: "POST",
@@ -81,35 +104,50 @@ serve(async (req) => {
     // Subreddits known for controversial content
     const controversialSubreddits = [
       "unpopularopinion",
-      "changemyview",
       "AmItheAsshole",
+      "changemyview",
       "relationship_advice",
       "confession",
       "tifu",
       "mildlyinfuriating",
-      "petpeeves",
+      "TrueOffMyChest",
+      "offmychest",
+      "rant",
     ];
 
-    const selectedSubreddit = controversialSubreddits[Math.floor(Math.random() * controversialSubreddits.length)];
+    // Try multiple subreddits to find controversial content
+    const shuffledSubreddits = controversialSubreddits.sort(() => 0.5 - Math.random());
+    let allControversialPosts: any[] = [];
 
-    // Fetch controversial posts from the selected subreddit
-    const response = await fetch(`https://oauth.reddit.com/r/${selectedSubreddit}/controversial?t=day&limit=50`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "User-Agent": "KarmaCasino/1.0 by u/Cold_Count_3944",
-      },
-    });
+    // Fetch from multiple subreddits for better variety
+    for (const subreddit of shuffledSubreddits.slice(0, 3)) {
+      try {
+        const response = await fetch(`https://oauth.reddit.com/r/${subreddit}/controversial?t=day&limit=25`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "User-Agent": "KarmaCasino/1.0 by u/Cold_Count_3944",
+          },
+        });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch posts from r/${selectedSubreddit}`);
+        if (response.ok) {
+          const data: RedditResponse = await response.json();
+          const posts = data.data.children
+            .filter((item) => item.kind === "t3")
+            .map((item) => ({ ...item.data, source_subreddit: subreddit }));
+          allControversialPosts.push(...posts);
+          console.log(`Found ${posts.length} posts from r/${subreddit}`);
+        }
+      } catch (error) {
+        console.error(`Error fetching from r/${subreddit}:`, error);
+      }
     }
 
-    const data: RedditResponse = await response.json();
+    if (allControversialPosts.length === 0) {
+      throw new Error("No posts found from any subreddit");
+    }
 
     // Filter for potentially controversial posts
-    const controversialPosts = data.data.children
-      .filter((item) => item.kind === "t3")
-      .map((item) => item.data)
+    const controversialPosts = allControversialPosts
       .filter((post) => {
         // Look for signs of controversy:
         // - Low upvote ratio (lots of downvotes)
@@ -121,11 +159,13 @@ serve(async (req) => {
         return (
           !post.title.includes("[deleted]") &&
           !post.title.includes("[removed]") &&
+          post.title.length > 20 && // Substantial titles
+          post.title.length < 300 && // Not too long
           post.upvote_ratio < 0.8 && // Controversial (lots of downvotes)
-          post.num_comments > 20 && // Active discussion
-          hoursOld < 12 && // Recent (within 12 hours)
+          post.num_comments > 15 && // Active discussion
+          hoursOld < 24 && // Recent (within 24 hours)
           commentToUpvoteRatio > 0.5 && // High engagement relative to score
-          post.score > 10 // Some minimum visibility
+          post.score > 5 // Some minimum visibility
         );
       })
       .sort((a, b) => {
@@ -136,10 +176,58 @@ serve(async (req) => {
       });
 
     if (controversialPosts.length === 0) {
+      console.log("No suitable controversial posts found, trying with relaxed criteria...");
+      
+      // Try with more relaxed criteria
+      const relaxedPosts = allControversialPosts
+        .filter((post) => {
+          const hoursOld = (Date.now() / 1000 - post.created_utc) / 3600;
+          return (
+            !post.title.includes("[deleted]") &&
+            !post.title.includes("[removed]") &&
+            post.title.length > 15 &&
+            post.num_comments > 10 &&
+            hoursOld < 48 &&
+            post.score > 1
+          );
+        })
+        .sort((a, b) => b.num_comments - a.num_comments); // Sort by comment count
+
+      if (relaxedPosts.length === 0) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "No suitable posts found in any subreddit",
+            searched_subreddits: shuffledSubreddits.slice(0, 3),
+            total_posts_found: allControversialPosts.length,
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 404,
+          }
+        );
+      }
+      
+      controversialPosts.push(...relaxedPosts.slice(0, 5));
+    }
+
+    // Get previously used post IDs to avoid duplicates
+    const { data: recentRounds } = await supabase
+      .from("hot_potato_rounds")
+      .select("post_id")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    const usedPostIds = new Set(recentRounds?.map(r => r.post_id) || []);
+    
+    // Filter out recently used posts
+    const availablePosts = controversialPosts.filter(post => !usedPostIds.has(post.id));
+    
+    if (availablePosts.length === 0) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "No suitable controversial posts found",
+          error: "No new controversial posts found (all recent posts already used)",
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -148,7 +236,7 @@ serve(async (req) => {
       );
     }
 
-    const selectedPost = controversialPosts[0];
+    const selectedPost = availablePosts[0];
 
     // Calculate controversy score
     const controversyScore = Math.round(
@@ -186,8 +274,11 @@ serve(async (req) => {
         round: newRound,
         controversy_indicators: {
           upvote_ratio: selectedPost.upvote_ratio,
+          subreddit: selectedPost.subreddit,
           comment_count: selectedPost.num_comments,
           controversy_score: controversyScore,
+          posts_searched: allControversialPosts.length,
+          posts_available: availablePosts.length,
         },
       }),
       {

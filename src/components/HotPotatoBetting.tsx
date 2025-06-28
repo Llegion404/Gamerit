@@ -48,6 +48,31 @@ export function HotPotatoBetting({ player, redditUser, onRefreshPlayer }: HotPot
   const [betAmount, setBetAmount] = useState(100);
   const [placingBet, setPlacingBet] = useState(false);
 
+  // Listen for automatic round creation events
+  useEffect(() => {
+    const handleHotPotatoRoundCreated = (event: CustomEvent) => {
+      console.log("Hot potato round created event received:", event.detail);
+      fetchRounds();
+      toast.success("New hot potato round created! 🔥", { duration: 3000 });
+    };
+
+    const handleHotPotatoPostsUpdated = (event: CustomEvent) => {
+      console.log("Hot potato posts updated event received:", event.detail);
+      fetchRounds();
+      if (event.detail?.deleted_posts > 0) {
+        toast.info(`${event.detail.deleted_posts} post(s) were deleted!`, { duration: 4000 });
+      }
+    };
+
+    window.addEventListener('hotPotatoRoundCreated', handleHotPotatoRoundCreated as EventListener);
+    window.addEventListener('hotPotatoPostsUpdated', handleHotPotatoPostsUpdated as EventListener);
+
+    return () => {
+      window.removeEventListener('hotPotatoRoundCreated', handleHotPotatoRoundCreated as EventListener);
+      window.removeEventListener('hotPotatoPostsUpdated', handleHotPotatoPostsUpdated as EventListener);
+    };
+  }, [fetchRounds]);
+
   const fetchRounds = useCallback(async () => {
     try {
       // Fetch active rounds
@@ -244,10 +269,14 @@ export function HotPotatoBetting({ player, redditUser, onRefreshPlayer }: HotPot
           </div>
           <button
             onClick={createNewRound}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
           >
-            Create Round
+            Manual Create
           </button>
+        </div>
+        <div className="mt-3 text-sm text-muted-foreground">
+          <p>🤖 Hot potato rounds are created automatically every 10 minutes</p>
+          <p>🔥 Controversial posts are selected based on Reddit engagement patterns</p>
         </div>
       </div>
 
@@ -265,10 +294,13 @@ export function HotPotatoBetting({ player, redditUser, onRefreshPlayer }: HotPot
             <p className="text-muted-foreground mb-4">Create a new hot potato round to start betting!</p>
             <button
               onClick={createNewRound}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
             >
-              Create First Round
+              Create Round Now
             </button>
+            <p className="text-xs text-muted-foreground mt-2">
+              Or wait for automatic creation (every 10 minutes)
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
