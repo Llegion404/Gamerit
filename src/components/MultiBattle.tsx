@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { GameRound as GameRoundComponent } from "./GameRound";
+import { HotPotatoBetting } from "./HotPotatoBetting";
 import { GameRound as GameRoundType, Player } from "../lib/supabase";
 import { RedditUser } from "../lib/reddit-auth";
 
@@ -21,6 +22,7 @@ interface MultiBattleProps {
 export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBets, refreshData }: MultiBattleProps) {
   const [activeTab, setActiveTab] = useState(0);
   const [lastActiveRoundId, setLastActiveRoundId] = useState<string | null>(null);
+  const [battleMode, setBattleMode] = useState<"classic" | "hot-potato">("classic");
 
   // Listen for round creation events to refresh data
   useEffect(() => {
@@ -64,6 +66,49 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
 
   return (
     <div className="space-y-6">
+      {/* Battle Mode Selector */}
+      <div className="bg-card border border-border rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Battle Mode</h2>
+            <p className="text-sm text-muted-foreground">Choose your preferred betting style</p>
+          </div>
+          <div className="flex bg-secondary rounded-lg p-1">
+            <button
+              onClick={() => setBattleMode("classic")}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                battleMode === "classic"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Classic Battles
+            </button>
+            <button
+              onClick={() => setBattleMode("hot-potato")}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                battleMode === "hot-potato"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              🔥 Hot Potato
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {battleMode === "hot-potato" ? (
+        <HotPotatoBetting 
+          player={player} 
+          redditUser={redditUser} 
+          onRefreshPlayer={() => {
+            // Refresh player data - you might need to pass this from parent
+            refreshData();
+          }} 
+        />
+      ) : (
+        <>
       {/* Battle Overview */}
       <div className="bg-card border border-border rounded-lg p-4">
         <h2 className="text-xl font-semibold mb-4 text-center">Battles Overview</h2>
@@ -102,6 +147,8 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
           refreshData={refreshData}
         />
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -36,6 +36,31 @@ export type Player = {
   created_at: string;
 };
 
+export type HotPotatoRound = {
+  id: string;
+  post_id: string;
+  post_title: string;
+  post_author: string;
+  post_subreddit: string;
+  post_url: string;
+  created_at: string;
+  expires_at: string;
+  status: "active" | "deleted" | "survived" | "expired";
+  controversy_score: number;
+  initial_score: number;
+  final_score?: number;
+  actual_deletion_time?: string;
+};
+
+export type HotPotatoBet = {
+  id: string;
+  round_id: string;
+  player_id: string;
+  predicted_hours: number;
+  bet_amount: number;
+  created_at: string;
+};
+
 export type Bet = {
   id: string;
   round_id: string;
