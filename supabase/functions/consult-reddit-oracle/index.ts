@@ -25,6 +25,7 @@ interface RedditPost {
     subreddit: string;
     score: number;
     created_utc: number;
+    num_comments?: number;
   };
 }
 
@@ -39,6 +40,40 @@ interface OracleAnswer {
   subreddit: string;
   author: string;
   score: number;
+}
+
+interface RedditTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
+async function getRedditAccessToken(): Promise<string> {
+  const clientId = Deno.env.get('REDDIT_CLIENT_ID');
+  const clientSecret = Deno.env.get('REDDIT_CLIENT_SECRET');
+  
+  if (!clientId || !clientSecret) {
+    throw new Error('Reddit credentials not configured');
+  }
+
+  const credentials = btoa(`${clientId}:${clientSecret}`);
+  
+  const response = await fetch('https://www.reddit.com/api/v1/access_token', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': 'RedditOracle/1.0',
+    },
+    body: 'grant_type=client_credentials',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get Reddit access token: ${response.status}`);
+  }
+
+  const data: RedditTokenResponse = await response.json();
+  return data.access_token;
 }
 
 serve(async (req) => {
@@ -65,6 +100,24 @@ serve(async (req) => {
     }
 
     console.log(`Oracle consultation: "${question}"`);
+
+    // Get Reddit access token
+    let accessToken: string;
+    try {
+      accessToken = await getRedditAccessToken();
+    } catch (error) {
+      console.error('Failed to get Reddit access token:', error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "The oracle's connection to the digital realm has been severed",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 503,
+        }
+      );
+    }
 
     // Diverse subreddits for mystical wisdom
     const oracleSubreddits = [
@@ -116,8 +169,9 @@ serve(async (req) => {
         const sortTypes = ["hot", "top?t=week", "new"];
         const sortType = sortTypes[Math.floor(Math.random() * sortTypes.length)];
         
-        const response = await fetch(`https://www.reddit.com/r/${subreddit}/${sortType}.json?limit=25`, {
+        const response = await fetch(`https://oauth.reddit.com/r/${subreddit}/${sortType}?limit=25`, {
           headers: {
+            "Authorization": `Bearer ${accessToken}`,
             "User-Agent": "RedditOracle/1.0",
           },
         });
@@ -161,9 +215,10 @@ serve(async (req) => {
           for (const post of postsWithComments) {
             try {
               const commentsResponse = await fetch(
-                `https://www.reddit.com/r/${subreddit}/comments/${post.data.id}.json?limit=10`,
+                `https://oauth.reddit.com/r/${subreddit}/comments/${post.data.id}?limit=10`,
                 {
                   headers: {
+                    "Authorization": `Bearer ${accessToken}`,
                     "User-Agent": "RedditOracle/1.0",
                   },
                 }
@@ -195,6 +250,8 @@ serve(async (req) => {
               console.error(`Error fetching comments from r/${subreddit}:`, error);
             }
           }
+        } else {
+          console.error(`Failed to fetch from r/${subreddit}: ${response.status}`);
         }
       } catch (error) {
         console.error(`Error fetching from r/${subreddit}:`, error);
@@ -251,7 +308,7 @@ serve(async (req) => {
       .replace(/\*\*([^*]+)\*\*/g, "$1")
       .replace(/\*([^*]+)\*/g, "$1")
       .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-      .replace(/^&gt;\s*/gm, "")
+      .replace(/^>\s*/gm, "")
       .trim();
 
     // Ensure it ends with proper punctuation
