@@ -66,8 +66,8 @@ function isValidContent(text: string): boolean {
   
   const cleanText = text.trim().toLowerCase();
   
-  // Basic length requirements
-  if (cleanText.length < 15 || cleanText.length > 500) return false;
+  // Basic length requirements - allow very short comments (minimum 2 characters)
+  if (cleanText.length < 2 || cleanText.length > 500) return false;
   
   // Check for deleted/removed content
   if (cleanText.includes('[deleted]') || cleanText.includes('[removed]')) return false;
