@@ -18,6 +18,7 @@ import toast, { Toaster } from "react-hot-toast";
 import Archaeology from "./components/Archaeology";
 import { ComingSoon } from "./components/ComingSoon";
 import RedditRadio from "./components/RedditRadio";
+import { RedditOracle } from "./components/RedditOracle";
 
 function App() {
   const { player, redditUser, loading: authLoading, login, logout, refreshPlayer, claimWelfareChips } = useAuth();
@@ -203,6 +204,8 @@ function App() {
         {activeGame === "coming-soon" && <ComingSoon />}
 
         {activeGame === "reddit-radio" && <RedditRadio />}
+
+        {activeGame === "reddit-oracle" && <RedditOracle />}
 
         {activeGame === "progression" && (
           <div className="max-w-6xl mx-auto">

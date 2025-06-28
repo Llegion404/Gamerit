@@ -12,6 +12,7 @@ import {
   Search,
   SquareDashedBottomCode,
   Timer,
+  Crystal,
 } from "lucide-react";
 import { useState } from "react";
 import { Player } from "../lib/supabase";
@@ -36,6 +37,7 @@ const games = [
   { id: "archaeology", name: "Archaeology", icon: Search, active: true },
   { id: "productivity-paradox", name: "Productivity Paradox", icon: Timer, active: true },
   { id: "reddit-radio", name: "Reddit Radio", icon: SquareDashedBottomCode, active: true },
+  { id: "reddit-oracle", name: "Reddit Oracle", icon: Crystal, active: true },
   { id: "progression", name: "Progression", icon: Trophy, active: true },
   { id: "coming-soon", name: "Coming soon", icon: SquareDashedBottomCode, active: false },
 ];
