@@ -14,6 +14,7 @@ interface HeaderProps {
   canClaimWelfare: boolean;
   activeGame: string;
   onGameChange: (gameId: string) => void;
+  isOracleConsulting?: boolean;
 }
 
 const games = [
@@ -36,6 +37,7 @@ export function Header({
   canClaimWelfare,
   activeGame,
   onGameChange,
+  isOracleConsulting = false,
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -212,21 +214,29 @@ export function Header({
           <div className="flex items-center h-12 overflow-x-auto scrollbar-hide">
             {games.map((game) => {
               const IconComponent = game.icon;
+              const isDisabled = isOracleConsulting && activeGame === "reddit-oracle" && game.id !== "reddit-oracle";
               return (
                 <button
                   key={game.id}
-                  onClick={() => onGameChange(game.id)}
+                  onClick={() => !isDisabled && onGameChange(game.id)}
+                  disabled={isDisabled}
                   className={`
-                    flex items-center space-x-2 px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap
+                    flex items-center space-x-2 px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed
                     ${
                       activeGame === game.id
                         ? "text-primary border-b-2 border-primary"
+                        : isDisabled 
+                        ? "text-muted-foreground/50"
                         : "text-muted-foreground hover:text-foreground"
                     }
                   `}
+                  title={isDisabled ? "Oracle is consulting - please wait" : undefined}
                 >
                   <IconComponent className="w-4 h-4" />
                   <span>{game.name}</span>
+                  {isDisabled && game.id !== "reddit-oracle" && (
+                    <span className="text-xs opacity-60">🔮</span>
+                  )}
                 </button>
               );
             })}

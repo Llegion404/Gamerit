@@ -20,7 +20,11 @@ interface OracleStats {
   wisdom_level: number;
 }
 
-export function RedditOracle() {
+interface RedditOracleProps {
+  onConsultingStateChange?: (isConsulting: boolean) => void;
+}
+
+export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
   const { player, redditUser } = useAuth();
   const { awardXP } = useProgression(redditUser?.name || null);
   const [question, setQuestion] = useState("");
@@ -29,6 +33,19 @@ export function RedditOracle() {
   const [isConsulting, setIsConsulting] = useState(false);
   const [oracleStats, setOracleStats] = useState<OracleStats | null>(null);
   const [animationPhase, setAnimationPhase] = useState<"idle" | "consulting" | "revealing">("idle");
+
+  // Track consulting state and notify parent
+  useEffect(() => {
+    onConsultingStateChange?.(isConsulting);
+  }, [isConsulting, onConsultingStateChange]);
+
+  // Reset state when component mounts (when switching to oracle)
+  useEffect(() => {
+    setAnimationPhase("idle");
+    setIsConsulting(false);
+    setCrystalGlow(false);
+    setMysticalText("");
+  }, []);
 
   // Oracle animation states
   const [crystalGlow, setCrystalGlow] = useState(false);
@@ -97,6 +114,11 @@ export function RedditOracle() {
       return;
     }
 
+    // Prevent multiple simultaneous consultations
+    if (isConsulting) {
+      return;
+    }
+
     setIsConsulting(true);
     setAnimationPhase("consulting");
     setCrystalGlow(true);
@@ -139,6 +161,7 @@ export function RedditOracle() {
           setAnimationPhase("idle");
           setCrystalGlow(false);
           setMysticalText("");
+          setIsConsulting(false);
 
           // Award XP for consulting the oracle
           if (redditUser?.name) {
@@ -170,16 +193,28 @@ export function RedditOracle() {
       setAnimationPhase("idle");
       setCrystalGlow(false);
       setMysticalText("");
-    } finally {
       setIsConsulting(false);
+    } finally {
+      // Ensure consulting state is always reset
+      setTimeout(() => {
+        setIsConsulting(false);
+        onConsultingStateChange?.(false);
+      }, 100);
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !isConsulting) {
+    if (e.key === "Enter" && !isConsulting && question.trim()) {
       consultOracle();
     }
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      onConsultingStateChange?.(false);
+    };
+  }, [onConsultingStateChange]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">

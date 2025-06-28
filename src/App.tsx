@@ -19,6 +19,7 @@ import Archaeology from "./components/Archaeology";
 import { ComingSoon } from "./components/ComingSoon";
 import RedditRadio from "./components/RedditRadio";
 import { RedditOracle } from "./components/RedditOracle";
+import { useState as useAppState } from "react";
 
 function App() {
   const { player, redditUser, loading: authLoading, login, logout, refreshPlayer, claimWelfareChips } = useAuth();
@@ -36,6 +37,7 @@ function App() {
   const [canClaimWelfare, setCanClaimWelfare] = useState(false);
   const [activeGame, setActiveGame] = useState("reddit-battles");
   const [newAchievements, setNewAchievements] = useState<string[]>([]);
+  const [isOracleConsulting, setIsOracleConsulting] = useState(false);
 
   // Start automatic round management
   useRoundManager();
@@ -119,6 +121,21 @@ function App() {
     }
   };
 
+  const handleGameChange = (gameId: string) => {
+    // Prevent navigation away from oracle while consulting
+    if (isOracleConsulting && activeGame === "reddit-oracle" && gameId !== "reddit-oracle") {
+      toast.error("The oracle is currently consulting the digital spirits. Please wait...", {
+        duration: 3000,
+        style: {
+          background: "linear-gradient(45deg, #8B5CF6, #A855F7)",
+          color: "white",
+        },
+      });
+      return;
+    }
+    setActiveGame(gameId);
+  };
+
   if (authLoading || dataLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -140,7 +157,8 @@ function App() {
         onClaimWelfare={handleClaimWelfare}
         canClaimWelfare={canClaimWelfare}
         activeGame={activeGame}
-        onGameChange={setActiveGame}
+        onGameChange={handleGameChange}
+        isOracleConsulting={isOracleConsulting}
       />
 
       <main className="container mx-auto px-4 py-4 sm:py-8 max-w-7xl">
@@ -205,7 +223,12 @@ function App() {
 
         {activeGame === "reddit-radio" && <RedditRadio />}
 
-        {activeGame === "reddit-oracle" && <RedditOracle />}
+        {activeGame === "reddit-oracle" && (
+          <RedditOracle 
+            onConsultingStateChange={setIsOracleConsulting}
+            key={activeGame} // Force re-render when switching to oracle
+          />
+        )}
 
         {activeGame === "progression" && (
           <div className="max-w-6xl mx-auto">
