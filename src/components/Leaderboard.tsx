@@ -6,18 +6,29 @@ interface LeaderboardProps {
 }
 
 export function Leaderboard({ players }: LeaderboardProps) {
-}
-export function Leaderboard({ players }: LeaderboardProps) {
+  const getPositionIcon = (position: number) => {
     switch (position) {
       case 1:
         return <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />;
       case 2:
         return <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />;
-        <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-primary mr-2" />
-        Leaderboard
+      case 3:
+        return <Medal className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />;
+      default:
+        return null;
     }
+  };
+
   // Sort players by points
   const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
+
+  return (
+    <div className="bg-card rounded-lg border p-4 sm:p-6">
+      <div className="flex items-center mb-4 sm:mb-6">
+        <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-primary mr-2" />
+        <h2 className="text-lg sm:text-xl font-bold">Leaderboard</h2>
+      </div>
+      
       <div className="space-y-2 sm:space-y-3">
         {sortedPlayers.slice(0, 10).map((player, index) => (
           <div
@@ -32,6 +43,8 @@ export function Leaderboard({ players }: LeaderboardProps) {
                 <p className="font-medium text-sm sm:text-base truncate">u/{player.reddit_username}</p>
                 <p className="text-primary text-xs sm:text-sm font-medium">
                   {player.points.toLocaleString()} chips
+                </p>
+              </div>
             </div>
 
             {index < 3 && <div className="text-primary font-semibold text-sm sm:text-base shrink-0">#{index + 1}</div>}
@@ -39,8 +52,5 @@ export function Leaderboard({ players }: LeaderboardProps) {
         ))}
       </div>
     </div>
-        );
-      )
-      }
-
+  );
 }
