@@ -9,6 +9,7 @@ interface OracleResponse {
   id: string;
   question: string;
   answer: string;
+  source_permalink?: string;
   source_subreddit: string;
   source_author: string;
   timestamp: string;
@@ -150,6 +151,7 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
             id: Date.now().toString(),
             question: question.trim(),
             answer: data.answer.text,
+            source_permalink: data.answer.permalink,
             source_subreddit: data.answer.subreddit,
             source_author: data.answer.author,
             timestamp: new Date().toISOString(),
@@ -319,13 +321,26 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
                 <blockquote className="text-lg italic text-center leading-relaxed mb-4">
                   "{currentResponse.answer}"
                 </blockquote>
-                <div className="text-center text-sm text-muted-foreground">
+                <div className="text-center text-sm text-muted-foreground flex flex-col items-center gap-1">
                   <div className="flex items-center justify-center space-x-2">
                     <MessageCircle className="w-4 h-4" />
                     <span>Wisdom from r/{currentResponse.source_subreddit}</span>
                     <span>•</span>
                     <span>by u/{currentResponse.source_author}</span>
                   </div>
+                  {currentResponse.source_permalink && (
+                    <a 
+                      href={`https://reddit.com${currentResponse.source_permalink}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-500 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1 mt-1"
+                    >
+                      <span>View original comment</span>
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
+                  )}
                 </div>
               </div>
             </div>

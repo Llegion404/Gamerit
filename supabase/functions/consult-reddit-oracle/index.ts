@@ -49,6 +49,7 @@ interface RedditResponse {
 interface OracleAnswer {
   text: string;
   subreddit: string;
+  permalink?: string;
   author: string;
   score: number;
   quality_score: number;
@@ -468,7 +469,7 @@ serve(async (req) => {
           const data: RedditResponse = await response.json();
           
           // Extract and validate wisdom from posts
-          for (const item of data.data.children) {
+          for (const item of data.data.children) {            
             // Skip if author is invalid
             if (!isValidAuthor(item.data.author)) continue;
             
@@ -486,8 +487,9 @@ serve(async (req) => {
                 const qualityScore = calculateQualityScore(item);
                 if (qualityScore >= 20) { // Minimum quality threshold
                   allWisdom.push({
-                    text: text,
+                    text: text,                    
                     subreddit: item.data.subreddit,
+                    permalink: item.data.permalink,
                     author: item.data.author,
                     score: item.data.score,
                     quality_score: qualityScore,
@@ -504,8 +506,9 @@ serve(async (req) => {
                   const qualityScore = calculateQualityScore(item);
                   if (qualityScore >= 15) {
                     allWisdom.push({
-                      text: text,
+                      text: text,                      
                       subreddit: item.data.subreddit,
+                      permalink: item.data.permalink,
                       author: item.data.author,
                       score: item.data.score,
                       quality_score: qualityScore,
@@ -552,6 +555,7 @@ serve(async (req) => {
                     if (qualityScore >= 25) { // Higher threshold for comments
                       allWisdom.push({
                         text: text,
+                        permalink: post.data.permalink + comment.data.id + '/',
                         subreddit: comment.data.subreddit,
                         author: comment.data.author,
                         score: comment.data.score,
@@ -627,6 +631,7 @@ serve(async (req) => {
           text: cleanedText,
           subreddit: selectedWisdom.subreddit,
           author: selectedWisdom.author,
+          permalink: selectedWisdom.permalink,
           score: selectedWisdom.score,
           quality_score: selectedWisdom.quality_score,
         },
