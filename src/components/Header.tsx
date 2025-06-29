@@ -1,4 +1,4 @@
-import { Trophy, User, LogOut, Gift, Sun, Moon, Menu, X, Target, TrendingUp, Search, SquareDashedBottomCode, Timer, Italic as Crystal } from "lucide-react";
+import { Trophy, User, LogOut, Gift, Sun, Moon, Menu, X, Target, TrendingUp, Search, SquareDashedBottomCode, Timer, Italic as Crystal, Crown } from "lucide-react";
 import { useState } from "react";
 import { Player } from "../lib/supabase";
 import { RedditUser } from "../lib/reddit-auth";
