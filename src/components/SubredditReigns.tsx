@@ -81,7 +81,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
   const [gameWon, setGameWon] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingDilemma, setLoadingDilemma] = useState(false);
-  const [swipeDirection, setSwipeDirection] = useState<"left" | "right" | null>(null);
+  const [swipeDirection, setSwipeDirection] = useState<"left" | "right" | "reset" | null>(null);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
@@ -340,9 +340,15 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
     // Wait a moment to show the result, then move to next day
     setTimeout(() => {
       setDay(day + 1);
-      setShowResult(false);
-      setSwipeDirection(null);
-      fetchDilemma();
+      // Reset card position with a different animation class
+      setSwipeDirection("reset");
+      
+      // After the card returns, fetch new dilemma and reset states
+      setTimeout(() => {
+        setShowResult(false);
+        setSwipeDirection(null);
+        fetchDilemma();
+      }, 300);
     }, 2500);
   };
 
@@ -559,7 +565,9 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
             {!gameOver && !gameWon && currentDilemma && (
               <div 
                 className={`relative bg-card border-2 rounded-xl p-6 shadow-lg max-w-2xl mx-auto transition-transform duration-300 ${
-                  swipeDirection === "left" 
+                  swipeDirection === "reset"
+                    ? "translate-x-0 transition-transform duration-300"
+                    : swipeDirection === "left" 
                     ? "translate-x-[-100vw]" 
                     : swipeDirection === "right" 
                     ? "translate-x-[100vw]" 
@@ -661,9 +669,9 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                 {/* Loading Overlay */}
                 {loadingDilemma && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-xl">
-                    <div className="flex items-center gap-2 text-white">
+                    <div className="flex flex-col items-center gap-2 text-white">
                       <RefreshCw className="w-5 h-5 animate-spin" />
-                      <span>Loading dilemma...</span>
+                      <span>Loading dilemma for day {day}...</span>
                     </div>
                   </div>
                 )}
