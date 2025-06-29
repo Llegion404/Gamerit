@@ -5,7 +5,6 @@ import { MemeMarket } from "./components/MemeMarket";
 import { Leaderboard } from "./components/Leaderboard";
 import { PreviousRounds } from "./components/PreviousRounds";
 import { AdminPanel } from "./components/AdminPanel";
-import { ProductivityParadox } from "./components/ProductivityParadox";
 import ProgressionSystem from "./components/ProgressionSystem";
 import AchievementNotification from "./components/AchievementNotification";
 import { useAuth } from "./hooks/useAuth";
@@ -206,19 +205,6 @@ function App() {
 
         {activeGame === "archaeology" && <Archaeology />}
 
-        {activeGame === "productivity-paradox" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-            <div className="lg:col-span-2">
-              <ProductivityParadox player={player} onRefreshPlayer={refreshPlayer} redditUsername={redditUser?.name} />
-            </div>
-            <div className="space-y-4 sm:space-y-6 order-first lg:order-last">
-              <Leaderboard players={leaderboard} showMetaMinutes={true} />
-              {/* Admin Panel - only show if user is logged in */}
-              {redditUser && <AdminPanel />}
-            </div>
-          </div>
-        )}
-
         {activeGame === "coming-soon" && <ComingSoon />}
 
         {activeGame === "reddit-radio" && <RedditRadio />}
@@ -248,14 +234,6 @@ function App() {
           <p className="text-muted-foreground text-sm sm:text-base">Gamerit - The Ultimate Reddit Gaming Platform</p>
           <p className="text-xs sm:text-sm text-muted-foreground mt-2">
             🎯 Battle • 📈 Trade • 🦴 Explore • 🏆 Compete • ⭐ Progress
-          </p>
-          <div className="mt-3 sm:mt-4 text-muted-foreground text-xs space-y-1">
-            <p>• Reddit Battles: Bet on post performance and win big</p>
-            <p>• Meme Market: Trade trending keywords like stocks</p>
-            <p>• Archaeology: Discover the deepest comment chains</p>
-            <p>• Reddit Oracle: Ask questions and receive mystical wisdom from random Reddit comments</p>
-            <p>• Progression: Level up and unlock achievements as you play</p>
-            <p>• Start with 1,000 free Karma Chips • Claim 50 welfare chips daily when broke</p>
           </div>
         </div>
       </footer>

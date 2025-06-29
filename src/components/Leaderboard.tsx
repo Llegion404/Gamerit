@@ -3,10 +3,9 @@ import { Player } from "../lib/supabase";
 
 interface LeaderboardProps {
   players: Player[];
-  showMetaMinutes?: boolean;
 }
 
-export function Leaderboard({ players, showMetaMinutes = false }: LeaderboardProps) {
+export function Leaderboard({ players }: LeaderboardProps) {
   const getPositionIcon = (position: number) => {
     switch (position) {
       case 1:
@@ -24,31 +23,14 @@ export function Leaderboard({ players, showMetaMinutes = false }: LeaderboardPro
     }
   };
 
-  // Sort players by the appropriate metric
-  const sortedPlayers = [...players].sort((a, b) => {
-    if (showMetaMinutes) {
-      // Use database meta_minutes field
-      const aMetaMinutes = a.meta_minutes || 0;
-      const bMetaMinutes = b.meta_minutes || 0;
-      return bMetaMinutes - aMetaMinutes;
-    }
-    return b.points - a.points;
-  });
+  // Sort players by points
+  const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
 
   return (
     <div className="bg-card border border-border rounded-lg p-4 sm:p-6">
       <h2 className="text-lg sm:text-xl font-semibold tracking-tight mb-4 sm:mb-6 flex items-center">
-        {showMetaMinutes ? (
-          <>
-            <Timer className="w-4 h-4 sm:w-5 sm:h-5 text-primary mr-2" />
-            Meta-Minutes Leaderboard
-          </>
-        ) : (
-          <>
-            <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-primary mr-2" />
-            Leaderboard
-          </>
-        )}
+        <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-primary mr-2" />
+        Leaderboard
       </h2>
 
       <div className="space-y-2 sm:space-y-3">
@@ -64,9 +46,7 @@ export function Leaderboard({ players, showMetaMinutes = false }: LeaderboardPro
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm sm:text-base truncate">u/{player.reddit_username}</p>
                 <p className="text-primary text-xs sm:text-sm font-medium">
-                  {showMetaMinutes
-                    ? `${(player.meta_minutes || 0).toLocaleString()} Meta-Minutes`
-                    : `${player.points.toLocaleString()} chips`}
+                  {player.points.toLocaleString()} chips
                 </p>
               </div>
             </div>

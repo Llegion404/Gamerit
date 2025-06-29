@@ -21,7 +21,6 @@ const games = [
   { id: "reddit-battles", name: "Reddit Battles", icon: Target, active: true },
   { id: "meme-market", name: "Meme Market", icon: TrendingUp, active: true },
   { id: "archaeology", name: "Archaeology", icon: Search, active: true },
-  { id: "productivity-paradox", name: "Productivity Paradox", icon: Timer, active: true },
   { id: "reddit-radio", name: "Reddit Radio", icon: SquareDashedBottomCode, active: true },
   { id: "reddit-oracle", name: "Reddit Oracle", icon: Crystal, active: true },
   { id: "progression", name: "Progression", icon: Trophy, active: true },
