@@ -23,6 +23,29 @@ interface RedditPostResponse {
   };
 }
 
+// Helper function to make fetch requests with timeout
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number = 10000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Request to ${url} timed out after ${timeoutMs}ms`);
+      throw new Error(`Request timeout: ${url}`);
+    }
+    console.error(`Network error for ${url}:`, error);
+    throw error;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   // Add CORS headers to all responses
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
@@ -57,8 +80,8 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Get Reddit access token using client credentials
-    const tokenResponse = await fetch("https://www.reddit.com/api/v1/access_token", {
+    // Get Reddit access token using client credentials with timeout
+    const tokenResponse = await fetchWithTimeout("https://www.reddit.com/api/v1/access_token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -68,7 +91,7 @@ Deno.serve(async (req: Request) => {
       body: new URLSearchParams({
         grant_type: "client_credentials",
       }),
-    });
+    }, 15000);
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
@@ -79,14 +102,14 @@ Deno.serve(async (req: Request) => {
     const tokenData: RedditTokenResponse = await tokenResponse.json();
     const accessToken = tokenData.access_token;
 
-    // Get active rounds from Supabase
-    const activeRoundsResponse = await fetch(`${SUPABASE_URL}/rest/v1/game_rounds?status=eq.active&select=*`, {
+    // Get active rounds from Supabase with timeout
+    const activeRoundsResponse = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/game_rounds?status=eq.active&select=*`, {
       headers: {
         Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         apikey: SUPABASE_SERVICE_ROLE_KEY,
         "Content-Type": "application/json",
       },
-    });
+    }, 10000);
 
     if (!activeRoundsResponse.ok) {
       throw new Error("Failed to fetch active rounds");
@@ -114,19 +137,25 @@ Deno.serve(async (req: Request) => {
     // Update scores for each active round
     for (const round of activeRounds) {
       try {
-        // Fetch current scores for both posts using the proper Reddit posts API
+        // Fetch current scores for both posts using the proper Reddit posts API with timeout
         const [postAResponse, postBResponse] = await Promise.all([
-          fetch(`https://oauth.reddit.com/api/info.json?id=t3_${round.post_a_id}`, {
+          fetchWithTimeout(`https://oauth.reddit.com/api/info.json?id=t3_${round.post_a_id}`, {
             headers: {
               Authorization: `Bearer ${accessToken}`,
               "User-Agent": "KarmaCasino/1.0 by u/Cold_Count_3944",
             },
+          }, 10000).catch(error => {
+            console.error(`Error fetching post A (${round.post_a_id}):`, error);
+            return null;
           }),
-          fetch(`https://oauth.reddit.com/api/info.json?id=t3_${round.post_b_id}`, {
+          fetchWithTimeout(`https://oauth.reddit.com/api/info.json?id=t3_${round.post_b_id}`, {
             headers: {
               Authorization: `Bearer ${accessToken}`,
               "User-Agent": "KarmaCasino/1.0 by u/Cold_Count_3944",
             },
+          }, 10000).catch(error => {
+            console.error(`Error fetching post B (${round.post_b_id}):`, error);
+            return null;
           }),
         ]);
 
@@ -136,7 +165,7 @@ Deno.serve(async (req: Request) => {
         let postBExists = true;
 
         // Check if post A still exists and get its current score
-        if (postAResponse.ok) {
+        if (postAResponse && postAResponse.ok) {
           try {
             const postAData: RedditPostResponse = await postAResponse.json();
             if (postAData.data?.children?.[0]?.data) {
@@ -151,11 +180,11 @@ Deno.serve(async (req: Request) => {
           }
         } else {
           postAExists = false;
-          console.log(`Post A (${round.post_a_id}) is not accessible (status: ${postAResponse.status})`);
+          console.log(`Post A (${round.post_a_id}) is not accessible`);
         }
 
         // Check if post B still exists and get its current score
-        if (postBResponse.ok) {
+        if (postBResponse && postBResponse.ok) {
           try {
             const postBData: RedditPostResponse = await postBResponse.json();
             if (postBData.data?.children?.[0]?.data) {
@@ -170,11 +199,11 @@ Deno.serve(async (req: Request) => {
           }
         } else {
           postBExists = false;
-          console.log(`Post B (${round.post_b_id}) is not accessible (status: ${postBResponse.status})`);
+          console.log(`Post B (${round.post_b_id}) is not accessible`);
         }
 
-        // Update the round with new scores
-        const updateResponse = await fetch(`${SUPABASE_URL}/rest/v1/game_rounds?id=eq.${round.id}`, {
+        // Update the round with new scores using timeout
+        const updateResponse = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/game_rounds?id=eq.${round.id}`, {
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
@@ -185,7 +214,7 @@ Deno.serve(async (req: Request) => {
             post_a_final_score: postACurrentScore,
             post_b_final_score: postBCurrentScore,
           }),
-        });
+        }, 10000);
 
         if (updateResponse.ok) {
           updatedRounds++;

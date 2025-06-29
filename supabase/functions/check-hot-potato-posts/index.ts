@@ -6,6 +6,29 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper function to make fetch requests with timeout
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number = 10000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Request to ${url} timed out after ${timeoutMs}ms`);
+      throw new Error(`Request timeout: ${url}`);
+    }
+    console.error(`Network error for ${url}:`, error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -35,8 +58,8 @@ serve(async (req) => {
 
     console.log("Checking hot potato posts for deletion...");
 
-    // Get Reddit access token
-    const tokenResponse = await fetch("https://www.reddit.com/api/v1/access_token", {
+    // Get Reddit access token with timeout
+    const tokenResponse = await fetchWithTimeout("https://www.reddit.com/api/v1/access_token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -46,7 +69,7 @@ serve(async (req) => {
       body: new URLSearchParams({
         grant_type: "client_credentials",
       }),
-    });
+    }, 15000);
 
     if (!tokenResponse.ok) {
       throw new Error("Failed to get Reddit access token");
@@ -85,13 +108,13 @@ serve(async (req) => {
 
     for (const round of activeRounds) {
       try {
-        // Check if post still exists
-        const response = await fetch(`https://oauth.reddit.com/api/info.json?id=t3_${round.post_id}`, {
+        // Check if post still exists with timeout
+        const response = await fetchWithTimeout(`https://oauth.reddit.com/api/info.json?id=t3_${round.post_id}`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             "User-Agent": "KarmaCasino/1.0 by u/Cold_Count_3944",
           },
-        });
+        }, 10000);
 
         if (response.ok) {
           const data = await response.json();
@@ -116,6 +139,8 @@ serve(async (req) => {
         }
       } catch (error) {
         console.error(`Error checking post ${round.post_id}:`, error);
+        // On network error, skip this round but continue with others
+        continue;
       }
     }
 
