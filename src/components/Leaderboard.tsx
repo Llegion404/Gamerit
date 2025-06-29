@@ -113,6 +113,8 @@ export function Leaderboard({ players }: LeaderboardProps) {
       
       <div className="space-y-2 sm:space-y-3">
         {leaderboardType === "points" ? (
+          )
+          }
           // Points Leaderboard
           players.slice(0, 10).map((player, index) => (
             <div
@@ -178,3 +180,7 @@ export function Leaderboard({ players }: LeaderboardProps) {
       </div>
     </div>
   );
+          )
+          )
+  )
+}
