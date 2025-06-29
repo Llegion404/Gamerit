@@ -177,8 +177,8 @@ function App() {
                 />
               </div>
 
-              <div className="space-y-4 sm:space-y-6 order-first lg:order-last">
-                <Leaderboard players={leaderboard} />
+              <div className="space-y-4 sm:space-y-6 order-first lg:order-last"> 
+                <Leaderboard players={leaderboard} gameMode={activeGame} />
 
                 {/* Admin Panel - only show if user is logged in */}
                 {redditUser && <AdminPanel />}
@@ -198,7 +198,7 @@ function App() {
               <MemeMarket player={player} onRefreshPlayer={refreshPlayer} redditUsername={redditUser?.name} />
             </div>
             <div className="space-y-4 sm:space-y-6 order-first lg:order-last">
-              <Leaderboard players={leaderboard} />
+              <Leaderboard players={leaderboard} gameMode={activeGame} />
               {/* Admin Panel - only show if user is logged in */}
               {redditUser && <AdminPanel />}
             </div>
