@@ -64,16 +64,23 @@
   }
 
   /* Mobile-first responsive typography */
-  h1 {
+  h1, .h1 {
     @apply text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl;
   }
 
-  h2 {
+  h2, .h2 {
     @apply text-xl font-semibold tracking-tight sm:text-2xl lg:text-3xl;
   }
 
-  h3 {
+  h3, .h3 {
     @apply text-lg font-medium sm:text-xl;
+  }
+
+  /* Improved mobile touch targets */
+  button, 
+  [role="button"],
+  a {
+    @apply min-h-[2.5rem] min-w-[2.5rem] sm:min-h-0 sm:min-w-0;
   }
 
   /* Custom scrollbar for better mobile experience */
@@ -103,5 +110,43 @@
 
   .scrollbar-hide::-webkit-scrollbar {
     display: none; /* Safari and Chrome */
+  }
+  
+  /* Utility for preventing text overflow */
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Utility for better mobile spacing */
+  .mobile-p {
+    @apply p-3 sm:p-4;
+  }
+  
+  .mobile-px {
+    @apply px-3 sm:px-4;
+  }
+  
+  .mobile-py {
+    @apply py-3 sm:py-4;
+  }
+  
+  /* Improved mobile spacing */
+  @media (max-width: 640px) {
+    .container {
+      padding-left: 0.75rem;
+      padding-right: 0.75rem;
+    }
+    
+    .card-padding {
+      padding: 1rem;
+    }
+  }
+  
+  /* Improved touch targets for mobile */
+  @media (max-width: 640px) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
   }
 }

@@ -11,7 +11,7 @@ import { useAuth } from "./hooks/useAuth";
 import { useGameData } from "./hooks/useGameData";
 import { useRoundManager } from "./hooks/useRoundManager";
 import { useHotPotatoManager } from "./hooks/useHotPotatoManager";
-import { useProgression } from "./hooks/useProgression";
+import { useProgression } from "./hooks/useProgression"; 
 import { SubredditReigns } from "./components/SubredditReigns";
 import { Loader2 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
@@ -22,7 +22,6 @@ import { RedditOracle } from "./components/RedditOracle";
 import { useState as useAppState } from "react";
 
 function App() {
-  const { player, redditUser, loading: authLoading, login, logout, refreshPlayer, claimWelfareChips } = useAuth();
   const {
     currentRounds,
     previousRounds,
@@ -33,6 +32,7 @@ function App() {
     getUserBets,
     refreshData,
   } = useGameData();
+  const { player, redditUser, loading: authLoading, login, logout, refreshPlayer, claimWelfareChips } = useAuth();
   const { awardXP } = useProgression(redditUser?.name || null);
   const [canClaimWelfare, setCanClaimWelfare] = useState(false);
   const [activeGame, setActiveGame] = useState("reddit-battles");
@@ -40,7 +40,7 @@ function App() {
   const [isOracleConsulting, setIsOracleConsulting] = useState(false);
 
   // Start automatic round management
-  useRoundManager();
+  useRoundManager(); 
   useHotPotatoManager();
 
   // Listen for round creation events and show notifications
@@ -48,7 +48,7 @@ function App() {
     const handleRoundCreated = (event: CustomEvent) => {
       console.log("Round created event received in App:", event.detail);
       if (activeGame === "reddit-battles") {
-        toast.success("New battle created! 🎯", {
+        toast.success("New battle created! 🎯", { 
           duration: 3000,
           style: {
             background: "hsl(var(--card))",
@@ -65,6 +65,7 @@ function App() {
       window.removeEventListener('roundCreated', handleRoundCreated as EventListener);
     };
   }, [activeGame]);
+  
   useEffect(() => {
     // Check if player can claim welfare chips
     if (player) {
@@ -72,7 +73,7 @@ function App() {
     }
   }, [player]);
 
-  const handlePlaceBet = async (roundId: string, betOn: "A" | "B", amount: number) => {
+  const handlePlaceBet = async (roundId: string, betOn: "A" | "B", amount: number) => { 
     if (!player || !redditUser) return;
 
     try {
@@ -80,7 +81,7 @@ function App() {
       await refreshPlayer(); // Refresh player points after betting
 
       // Award XP for placing a bet
-      try {
+      try { 
         const xpResult = await awardXP(10, "Placed bet in Reddit Battle", {
           roundId,
           betOn,
@@ -88,7 +89,7 @@ function App() {
           timestamp: new Date().toISOString(),
         });
 
-        if (xpResult?.level_up) {
+        if (xpResult?.level_up) { 
           toast.success(`🎉 Level up! You are now level ${xpResult.new_level}!`);
         }
 
@@ -96,7 +97,7 @@ function App() {
           setNewAchievements(xpResult.new_achievements);
         }
       } catch (xpError) {
-        console.error("Failed to award XP:", xpError);
+        console.error("Failed to award XP:", xpError); 
         // Don't fail the bet if XP awarding fails
       }
 
@@ -107,7 +108,7 @@ function App() {
     }
   };
 
-  const handleClaimWelfare = async () => {
+  const handleClaimWelfare = async () => { 
     try {
       const result = await claimWelfareChips();
       if (result?.success) {
@@ -121,7 +122,7 @@ function App() {
     }
   };
 
-  const handleGameChange = (gameId: string) => {
+  const handleGameChange = (gameId: string) => { 
     // Prevent navigation away from oracle while consulting
     if (isOracleConsulting && activeGame === "reddit-oracle" && gameId !== "reddit-oracle") {
       toast.error("The oracle is currently consulting the digital spirits. Please wait...", {
@@ -136,7 +137,7 @@ function App() {
     setActiveGame(gameId);
   };
 
-  if (authLoading || dataLoading) {
+  if (authLoading || dataLoading) { 
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -148,7 +149,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background"> 
       <Header
         player={player}
         redditUser={redditUser}
@@ -161,7 +162,7 @@ function App() {
         isOracleConsulting={isOracleConsulting}
       />
 
-      <main className="container mx-auto px-4 py-4 sm:py-8 max-w-7xl">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl">
         {activeGame === "reddit-battles" && (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -183,7 +184,7 @@ function App() {
                 {redditUser && <AdminPanel />}
               </div>
             </div>
-
+            
             {/* Previous Rounds section moved lower */}
             <div className="mt-8 sm:mt-12">
               <PreviousRounds rounds={previousRounds} />
@@ -191,7 +192,7 @@ function App() {
           </>
         )}
 
-        {activeGame === "meme-market" && (
+        {activeGame === "meme-market" && ( 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-2">
               <MemeMarket player={player} onRefreshPlayer={refreshPlayer} redditUsername={redditUser?.name} />
@@ -204,7 +205,7 @@ function App() {
           </div>
         )}
 
-        {activeGame === "archaeology" && <Archaeology />}
+        {activeGame === "archaeology" && <Archaeology />} 
 
         {activeGame === "coming-soon" && <ComingSoon />}
 
@@ -212,7 +213,7 @@ function App() {
         
         {activeGame === "subreddit-reigns" && (
           <SubredditReigns 
-            player={player} 
+            player={player}  
             onRefreshPlayer={refreshPlayer} 
             redditUsername={redditUser?.name} 
           />
@@ -225,7 +226,7 @@ function App() {
           />
         )}
 
-        {activeGame === "progression" && (
+        {activeGame === "progression" && ( 
           <div className="max-w-6xl mx-auto">
             <div className="mb-6">
               <h1 className="text-3xl font-bold text-foreground mb-2">Player Progression</h1>
@@ -238,7 +239,7 @@ function App() {
         )}
       </main>
 
-      <footer className="border-t border-border bg-card/50 mt-8 sm:mt-16 py-6 sm:py-8">
+      <footer className="border-t border-border bg-card/50 mt-8 sm:mt-16 py-4 sm:py-6">
         <div className="container mx-auto px-4 text-center">
           <p className="text-muted-foreground text-sm sm:text-base">Gamerit - The Ultimate Reddit Gaming Platform</p>
           <p className="text-xs sm:text-sm text-muted-foreground mt-2">
@@ -249,6 +250,7 @@ function App() {
             <p>• Meme Market: Trade trending keywords like stocks</p>
             <p>• Archaeology: Discover the deepest comment chains</p>
             <p>• Subreddit Reigns: Master the hivemind of different communities</p>
+            <p>• Reddit Radio: Listen to AI-narrated content from your favorite subreddits</p>
             <p>• Reddit Oracle: Ask questions and receive mystical wisdom from random Reddit comments</p>
             <p>• Progression: Level up and unlock achievements as you play</p>
             <p>• Start with 1,000 free Karma Chips • Claim 50 welfare chips daily when broke</p>

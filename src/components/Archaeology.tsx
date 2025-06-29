@@ -149,7 +149,7 @@ export default function Archaeology() {
 
   if (!player || !redditUser) {
     return (
-      <div className="p-4 max-w-3xl mx-auto">
+      <div className="p-3 sm:p-4 max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold mb-4">🦴 Archaeology Dig Sites</h1>
         <div className="text-center py-8">
           <p className="text-lg text-muted-foreground">Please log in to participate in archaeological expeditions.</p>
@@ -159,7 +159,7 @@ export default function Archaeology() {
   }
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
+    <div className="p-3 sm:p-4 max-w-3xl mx-auto">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">🦴 Archaeology Dig Sites</h1>
         <button
@@ -181,7 +181,7 @@ export default function Archaeology() {
         </div>
       ) : (
         challenges.map((c) => (
-          <div key={c.id} className="border rounded-lg p-6 mb-6 bg-card shadow-sm">
+          <div key={c.id} className="border rounded-lg p-4 sm:p-6 mb-6 bg-card shadow-sm">
             <div className="mb-4">
               <h3 className="font-semibold text-lg">{c.thread_title}</h3>
               <div className="flex items-center gap-4 text-muted-foreground text-sm">
@@ -204,7 +204,7 @@ export default function Archaeology() {
             </a>
 
             <div className="space-y-3">
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   placeholder="Paste Reddit comment URL here..."
@@ -212,7 +212,7 @@ export default function Archaeology() {
                   value={inputUrls[c.id] || ""}
                   onChange={(e) => setInputUrls((prev) => ({ ...prev, [c.id]: e.target.value }))}
                 />
-                <button
+                <button 
                   className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => handleSubmit(c.id)}
                   disabled={!inputUrls[c.id] || !inputUrls[c.id].trim()}
@@ -236,7 +236,7 @@ export default function Archaeology() {
               )}
             </div>
 
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <h4 className="font-semibold mb-2">🏆 Leaderboard</h4>
                 {(leaderboards[c.id] || []).length === 0 ? (

@@ -217,7 +217,7 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
   }, [onConsultingStateChange]);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
       {/* Header */}
       <div className="text-center space-y-4">
         <div className="relative">
@@ -251,7 +251,7 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
       </div>
 
       {/* Oracle Interface */}
-      <div className="bg-card rounded-xl border border-border shadow-lg p-8">
+      <div className="bg-card rounded-xl border border-border shadow-lg p-4 sm:p-8">
         <div className="space-y-6">
           {/* Question Input */}
           <div className="space-y-4">
@@ -335,7 +335,7 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
 
       {/* Recent Consultations */}
       {recentResponses.length > 0 && (
-        <div className="bg-card rounded-xl border border-border shadow-lg p-6">
+        <div className="bg-card rounded-xl border border-border shadow-lg p-4 sm:p-6">
           <h3 className="text-xl font-semibold mb-4 flex items-center space-x-2">
             <Crystal className="w-5 h-5 text-purple-500" />
             <span>Recent Oracle Consultations</span>
@@ -367,7 +367,7 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
       )}
 
       {/* How It Works */}
-      <div className="bg-card rounded-xl border border-border shadow-lg p-6">
+      <div className="bg-card rounded-xl border border-border shadow-lg p-4 sm:p-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
           <Sparkles className="w-5 h-5 text-purple-500" />
           <span>How the Oracle Works</span>
@@ -383,7 +383,7 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
       </div>
 
       {!player && (
-        <div className="bg-card rounded-xl border border-border shadow-lg p-6 text-center">
+        <div className="bg-card rounded-xl border border-border shadow-lg p-4 sm:p-6 text-center">
           <h3 className="text-lg font-semibold mb-2">Unlock the Oracle's Full Power</h3>
           <p className="text-muted-foreground mb-4">
             Login to track your consultations, earn XP, and build your Wisdom Level

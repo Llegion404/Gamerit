@@ -331,19 +331,21 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
   return (
     <div className="space-y-6">
       {/* Header */}
-      <MemeNewsTicker />
+      <div className="hidden sm:block">
+        <MemeNewsTicker />
+      </div>
       
       <div className="bg-card rounded-lg border border-border shadow-sm">
-        <div className="p-6 border-b border-border">
+        <div className="p-4 sm:p-6 border-b border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
               <h2 className="text-xl font-semibold">Meme Market</h2>
-              <span className="ml-2 text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full">
+              <span className="ml-2 text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full hidden sm:inline-block">
                 Real Data
               </span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
               <span>New stocks weekly • Prices update daily</span>
             </div>
@@ -357,7 +359,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
       {/* Tabs */}
       <div className="bg-card rounded-lg border border-border shadow-sm">
         <div className="border-b border-border">
-          <div className="flex justify-between items-center px-6">
+          <div className="flex justify-between items-center px-4 sm:px-6">
             <nav className="flex space-x-8" aria-label="Tabs">
               <button
                 onClick={() => setActiveTab("market")}
@@ -383,7 +385,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
             <button
               onClick={updateMarketData}
               disabled={marketUpdateLoading}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw className={`h-4 w-4 ${marketUpdateLoading ? "animate-spin" : ""}`} />
               {marketUpdateLoading ? "Refreshing..." : "Refresh Prices"}
@@ -391,7 +393,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {activeTab === "market" && (
             <div className="space-y-4">
               {stocks.length === 0 ? (
@@ -499,7 +501,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
                 <>
                   {/* Portfolio Summary */}
                   <div className="border border-border rounded-lg p-4 bg-background">
-                    <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
                       <div>
                         <p className="text-sm text-muted-foreground">Portfolio Value</p>
                         <p className="text-lg font-semibold">{portfolioValue} chips</p>
@@ -576,7 +578,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
       {/* Buy Stock Modal */}
       {selectedStock && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-lg border border-border shadow-lg w-full max-w-md">
+          <div className="bg-card rounded-lg border border-border shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-border">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">

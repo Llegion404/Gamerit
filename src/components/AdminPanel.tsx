@@ -42,14 +42,14 @@ export function AdminPanel() {
   };
 
   return (
-    <div className="bg-card border border-border rounded-lg p-4 sm:p-6">
-      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+    <div className="bg-card border border-border rounded-lg p-3 sm:p-4 md:p-6">
+      <div className="flex items-center gap-2 mb-3 sm:mb-4">
         <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
         <h2 className="text-lg sm:text-xl font-semibold tracking-tight">Game Status</h2>
       </div>
 
       {/* Round Status */}
-      <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-secondary/50 rounded-md border border-border">
+      <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-secondary/50 rounded-md border border-border">
         <h3 className="font-medium mb-3 text-sm sm:text-base">Current Status</h3>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 text-sm">
           <div className="text-center">
@@ -67,7 +67,7 @@ export function AdminPanel() {
       </div>
 
       {/* Manual Refresh Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 gap-3 sm:gap-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 sm:p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 gap-2 sm:gap-0">
         <div className="flex-1">
           <h3 className="font-medium text-blue-700 dark:text-blue-300 text-sm sm:text-base">Refresh Data</h3>
           <p className="text-blue-600 dark:text-blue-400 text-xs sm:text-sm">
@@ -78,7 +78,7 @@ export function AdminPanel() {
         <button
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+          className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
         >
           {isRefreshing ? (
             <>
@@ -94,7 +94,7 @@ export function AdminPanel() {
         </button>
       </div>
 
-      <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-secondary/30 rounded-lg">
+      <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-secondary/30 rounded-lg">
         <h4 className="font-medium mb-2 text-sm sm:text-base">How Betting Works:</h4>
         <ul className="text-muted-foreground text-xs sm:text-sm space-y-1">
           <li>• Reddit posts compete based on upvote growth over 24 hours</li>

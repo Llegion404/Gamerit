@@ -67,7 +67,7 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
   return (
     <div className="space-y-6">
       {/* Battle Mode Selector */}
-      <div className="bg-card border border-border rounded-lg p-4">
+      <div className="bg-card border border-border rounded-lg p-3 sm:p-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold">Battle Mode</h2>
@@ -76,7 +76,7 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
           <div className="flex bg-secondary rounded-lg p-1">
             <button
               onClick={() => setBattleMode("classic")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 battleMode === "classic"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -86,7 +86,7 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
             </button>
             <button
               onClick={() => setBattleMode("hot-potato")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 battleMode === "hot-potato"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -110,7 +110,7 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
       ) : (
         <>
       {/* Battle Overview */}
-      <div className="bg-card border border-border rounded-lg p-4">
+      <div className="bg-card border border-border rounded-lg p-3 sm:p-4">
         <h2 className="text-xl font-semibold mb-4 text-center">Battles Overview</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-xs">
           {rounds.slice(0, 10).map((round, index) => {

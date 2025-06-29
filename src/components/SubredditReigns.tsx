@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { useAuth } from "../hooks/useAuth";
 import { useProgression } from "../hooks/useProgression";
 import { ArrowLeft, ArrowRight, Trophy, Zap, AlertTriangle, Crown, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
@@ -85,6 +84,66 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
+  // Load player campaigns from database
+  useEffect(() => {
+    if (!player || !redditUsername) return;
+    
+    const loadCampaigns = async () => {
+      try {
+        // Get campaign data from database
+        const { data: campaignData, error: campaignError } = await supabase
+          .from("subreddit_campaigns")
+          .select("*")
+          .order("difficulty", { ascending: true });
+          
+        if (campaignError) throw campaignError;
+        
+        // Get player progress
+        const { data: progressData, error: progressError } = await supabase
+          .from("player_campaigns")
+          .select(`
+            campaign_id,
+            highest_day_reached,
+            highest_influence,
+            completed
+          `)
+          .eq("player_id", player.id);
+          
+        if (progressError) throw progressError;
+        
+        // Map progress to campaigns
+        const progressMap = new Map();
+        progressData?.forEach(progress => {
+          progressMap.set(progress.campaign_id, progress);
+        });
+        
+        // Create campaign list with progress
+        const campaignList = campaignData?.map((campaign, index) => {
+          const progress = progressMap.get(campaign.id);
+          return {
+            id: campaign.id,
+            name: campaign.name,
+            subreddit: campaign.subreddit,
+            difficulty: campaign.difficulty,
+            description: campaign.description || "",
+            unlocked: index === 0 || (progressMap.has(campaignData[index-1]?.id) && progressMap.get(campaignData[index-1]?.id).completed),
+            completed: progress?.completed || false,
+            highestDay: progress?.highest_day_reached || 0,
+            highestInfluence: progress?.highest_influence || 0
+          };
+        });
+        
+        if (campaignList?.length) {
+          setCampaigns(campaignList);
+        }
+      } catch (error) {
+        console.error("Error loading campaigns:", error);
+      }
+    };
+    
+    loadCampaigns();
+  }, [player, redditUsername]);
+
   // For touch swipe detection
   const minSwipeDistance = 50;
 
@@ -97,7 +156,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
     setTouchEnd(e.targetTouches[0].clientX);
   };
 
-  const onTouchEnd = () => {
+  const onTouchEnd = useCallback(() => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > minSwipeDistance;
@@ -108,7 +167,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
     } else if (isRightSwipe) {
       handleChoice("A");
     }
-  };
+  }, [touchStart, touchEnd]);
 
   // Fetch a new dilemma from the selected subreddit
   const fetchDilemma = useCallback(async () => {
@@ -116,7 +175,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
     
     setLoadingDilemma(true);
     try {
-      // In a real implementation, this would call a Supabase function to fetch from Reddit API
+      // Call the Supabase function to fetch from Reddit API
       // For now, we'll simulate with mock data
       
       // This would be replaced with a real API call:
@@ -124,7 +183,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
       //   body: { subreddit: selectedCampaign.subreddit }
       // });
       
-      // Simulate API delay
+      // Simulate API delay for now
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Generate a simulated dilemma based on the subreddit
@@ -260,7 +319,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
   };
 
   // Handle player choice
-  const handleChoice = async (choice: "A" | "B") => {
+  const handleChoice = useCallback(async (choice: "A" | "B") => {
     if (!currentDilemma || showResult || gameOver || gameWon) return;
     
     // Set swipe animation direction
@@ -271,6 +330,9 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
     
     // Show the result
     setShowResult(true);
+    
+    if (!selectedCampaign) return;
+    if (!player) return;
     
     // Play sound effect
     const isCorrectChoice = 
@@ -285,6 +347,17 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
     // Check for game over
     if (newInfluence <= 0) {
       setGameOver(true);
+      
+      // Update player campaign progress
+      await supabase.rpc("update_player_campaign_progress", {
+        p_player_id: player.id,
+        p_subreddit: selectedCampaign.subreddit,
+        p_day_reached: day,
+        p_influence: influence,
+        p_completed: false
+      });
+      
+      // Show toast
       toast.error("You've been downvoted into oblivion!");
       
       // Award XP for the attempt
@@ -306,6 +379,15 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
     // Check for win condition (30 days)
     if (day >= 30) {
       setGameWon(true);
+      
+      // Update player campaign progress
+      await supabase.rpc("update_player_campaign_progress", {
+        p_player_id: player.id,
+        p_subreddit: selectedCampaign.subreddit,
+        p_day_reached: day,
+        p_influence: newInfluence,
+        p_completed: true
+      });
       toast.success("You've conquered the subreddit! You are now King of r/" + selectedCampaign?.subreddit);
       
       // Award XP for winning
@@ -350,7 +432,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
         fetchDilemma();
       }, 300);
     }, 2500);
-  };
+  }, [currentDilemma, showResult, gameOver, gameWon, selectedCampaign, player, day, influence, redditUsername, awardXP, fetchDilemma]);
 
   // Reset the game selection
   const resetGame = () => {
@@ -358,6 +440,13 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
     setGameActive(false);
     setCurrentDilemma(null);
   };
+
+  // Update campaign progress periodically during gameplay
+  useEffect(() => {
+    if (gameActive && player && selectedCampaign && day > 1 && !gameOver && !gameWon) {
+      // Could add periodic progress saving here
+    }
+  }, [gameActive, player, selectedCampaign, day, gameOver, gameWon, influence]);
 
   if (!player) {
     return (
@@ -371,7 +460,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="bg-card rounded-lg border p-6">
         <div className="flex items-center justify-between">
@@ -388,7 +477,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
       {/* Game Area */}
       <div className="bg-card rounded-lg border p-6">
         {!selectedCampaign ? (
-          /* Campaign Selection */
+          /* Campaign Selection Screen */
           <div className="space-y-6">
             <h2 className="text-xl font-semibold">Choose Your Campaign</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -396,7 +485,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                 <div
                   key={campaign.id}
                   className={`border rounded-lg p-4 ${
-                    campaign.unlocked
+                    campaign.unlocked 
                       ? "cursor-pointer hover:border-primary transition-colors"
                       : "opacity-50 cursor-not-allowed"
                   } ${campaign.completed ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" : ""}`}
@@ -411,7 +500,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">r/{campaign.subreddit}</p>
-                  <p className="text-sm">{campaign.description}</p>
+                  <p className="text-sm mb-2">{campaign.description}</p>
                   <div className="mt-3 flex items-center gap-2">
                     <div
                       className={`text-xs px-2 py-1 rounded-full ${
@@ -430,6 +519,14 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                       </div>
                     )}
                   </div>
+                  {campaign.highestDay > 0 && (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>Best run: Day {campaign.highestDay}/30</span>
+                        <span>Max influence: {campaign.highestInfluence}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -437,7 +534,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
         ) : !gameActive ? (
           /* Campaign Details & Start Game */
           <div className="space-y-6">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-2">
               <button
                 onClick={resetGame}
                 className="text-muted-foreground hover:text-foreground transition-colors"
@@ -447,7 +544,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
               <h2 className="text-xl font-semibold">r/{selectedCampaign.subreddit}</h2>
             </div>
             
-            <div className="bg-secondary/50 rounded-lg p-6">
+            <div className="bg-secondary/50 rounded-lg p-4 sm:p-6">
               <h3 className="text-lg font-semibold mb-4">Campaign Briefing</h3>
               <p className="mb-4">
                 You're a new user in r/{selectedCampaign.subreddit}. Your goal is to gain influence by correctly
@@ -455,7 +552,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>• Each day, you'll face a dilemma based on a real post from the subreddit</li>
-                <li>• Swipe right or left to choose between two possible responses</li>
+                <li>• Swipe right/left or tap to choose between two possible responses</li>
                 <li>• Choose what the hivemind would upvote to gain influence</li>
                 <li>• Choose against the grain and lose influence</li>
                 <li>• If your influence hits 0, you're downvoted into oblivion</li>
@@ -480,7 +577,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
           </div>
         ) : (
           /* Active Game */
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Game Header */}
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -497,13 +594,16 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                 <h2 className="text-lg font-semibold">r/{selectedCampaign.subreddit}</h2>
               </div>
               <div className="flex items-center gap-4">
-                <div className="text-sm text-muted-foreground">Day {day}/30</div>
+                <div className="text-sm text-muted-foreground hidden sm:block">Day {day}/30</div>
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-yellow-500" />
                   <div className="font-semibold">{influence} Influence</div>
                 </div>
               </div>
             </div>
+            
+            {/* Mobile Day Counter */}
+            <div className="text-sm text-muted-foreground text-center sm:hidden">Day {day}/30</div>
             
             {/* Influence Meter */}
             <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
@@ -523,7 +623,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
             
             {/* Game Over or Victory Screen */}
             {(gameOver || gameWon) && (
-              <div className={`text-center p-8 rounded-lg border ${
+              <div className={`text-center p-4 sm:p-8 rounded-lg border ${
                 gameWon 
                   ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" 
                   : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
@@ -544,7 +644,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                     ? "You survived 30 days and successfully predicted what the hivemind would upvote." 
                     : `You survived ${day} days before losing all your influence.`}
                 </p>
-                <div className="flex gap-4 justify-center">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center">
                   <button
                     onClick={resetGame}
                     className="px-6 py-2 border border-input rounded-md hover:bg-accent transition-colors"
@@ -564,7 +664,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
             {/* Dilemma Card */}
             {!gameOver && !gameWon && currentDilemma && (
               <div 
-                className={`relative bg-card border-2 rounded-xl p-6 shadow-lg max-w-2xl mx-auto transition-transform duration-300 ${
+                className={`relative bg-card border-2 rounded-xl p-4 sm:p-6 shadow-lg max-w-2xl mx-auto transition-transform duration-300 ${
                   swipeDirection === "reset"
                     ? "translate-x-0 transition-transform duration-300"
                     : swipeDirection === "left" 
@@ -579,7 +679,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
               >
                 {/* Dilemma Header */}
                 <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-2 text-sm sm:text-base">
                     <div className="text-primary font-medium">r/{currentDilemma.subreddit}</div>
                     <div className="text-sm text-muted-foreground">u/{currentDilemma.author}</div>
                   </div>
@@ -587,7 +687,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                 </div>
                 
                 {/* Choices */}
-                <div className="space-y-4 mt-8">
+                <div className="space-y-4 mt-4 sm:mt-8">
                   {/* Choice A */}
                   <div 
                     className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors ${
@@ -599,7 +699,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                     }`}
                     onClick={() => !showResult && handleChoice("A")}
                   >
-                    <div className="flex justify-between items-start mb-2">
+                    <div className="flex justify-between items-start mb-2 text-sm sm:text-base">
                       <div className="font-medium flex items-center gap-2">
                         <ArrowRight className="w-4 h-4" />
                         Swipe Right
@@ -610,7 +710,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                         </div>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">{currentDilemma.choiceA.text}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{currentDilemma.choiceA.text}</p>
                     {showResult && (
                       <div className="text-xs text-muted-foreground mt-2">
                         u/{currentDilemma.choiceA.author}
@@ -629,7 +729,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                     }`}
                     onClick={() => !showResult && handleChoice("B")}
                   >
-                    <div className="flex justify-between items-start mb-2">
+                    <div className="flex justify-between items-start mb-2 text-sm sm:text-base">
                       <div className="font-medium flex items-center gap-2">
                         <ArrowLeft className="w-4 h-4" />
                         Swipe Left
@@ -640,7 +740,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                         </div>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">{currentDilemma.choiceB.text}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{currentDilemma.choiceB.text}</p>
                     {showResult && (
                       <div className="text-xs text-muted-foreground mt-2">
                         u/{currentDilemma.choiceB.author}
@@ -651,7 +751,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                 
                 {/* Result Overlay */}
                 {showResult && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-xl">
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
                     <div className={`text-4xl font-bold ${
                       (lastChoice === "A" && currentDilemma.choiceA.score > Math.abs(currentDilemma.choiceB.score)) ||
                       (lastChoice === "B" && Math.abs(currentDilemma.choiceB.score) > currentDilemma.choiceA.score)
@@ -668,7 +768,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
                 
                 {/* Loading Overlay */}
                 {loadingDilemma && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-xl">
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
                     <div className="flex flex-col items-center gap-2 text-white">
                       <RefreshCw className="w-5 h-5 animate-spin" />
                       <span>Loading dilemma for day {day}...</span>
@@ -680,7 +780,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
             
             {/* Swipe Instructions */}
             {!gameOver && !gameWon && currentDilemma && !showResult && (
-              <div className="text-center text-sm text-muted-foreground">
+              <div className="text-center text-xs sm:text-sm text-muted-foreground mt-2">
                 Swipe right to agree with the first comment, left for the second.
                 <br />
                 Or tap/click on your preferred response.
@@ -692,7 +792,7 @@ export function SubredditReigns({ player, onRefreshPlayer, redditUsername }: Sub
       
       {/* How to Play */}
       {!gameActive && (
-        <div className="bg-card rounded-lg border p-6">
+        <div className="bg-card rounded-lg border p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="w-5 h-5 text-primary" />
             <h3 className="text-lg font-semibold">How to Play Subreddit Reigns</h3>

@@ -374,7 +374,7 @@ export function GameRound({ round, player, redditUser, onPlaceBet, getUserBets, 
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="text-center">
-        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight mb-2">
+        <h2 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight mb-2 text-balance">
           r/{round.post_a_subreddit} vs r/{round.post_b_subreddit}
         </h2>
         <div className="flex items-center justify-center space-x-2 text-muted-foreground">
@@ -386,7 +386,7 @@ export function GameRound({ round, player, redditUser, onPlaceBet, getUserBets, 
       <div className="space-y-4 sm:space-y-6">
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 max-w-7xl mx-auto items-stretch">
           <div className="w-full lg:w-[calc(50%-1rem)]">
-            <PostCard
+            <PostCard 
               post={{
                 id: round.post_a_id,
                 subreddit: round.post_a_subreddit,
@@ -406,7 +406,7 @@ export function GameRound({ round, player, redditUser, onPlaceBet, getUserBets, 
           </div>
 
           <div className="flex items-center justify-center py-1 lg:py-0 lg:w-8">
-            <div className="text-2xl sm:text-3xl font-bold text-muted-foreground">VS</div>
+            <div className="text-xl sm:text-2xl md:text-3xl font-bold text-muted-foreground">VS</div>
           </div>
 
           <div className="w-full lg:w-[calc(50%-1rem)]">
@@ -432,7 +432,7 @@ export function GameRound({ round, player, redditUser, onPlaceBet, getUserBets, 
       </div>
 
       {!player && (
-        <div className="bg-card border border-border rounded-lg p-4 sm:p-6 text-center">
+        <div className="bg-card border border-border rounded-lg p-3 sm:p-4 md:p-6 text-center">
           <h3 className="text-lg font-semibold mb-2">Ready to Bet?</h3>
           <p className="text-muted-foreground">Login with Reddit to start betting with 1,000 free Karma Chips!</p>
         </div>
@@ -496,7 +496,7 @@ function BattleLoadingSkeleton() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="text-center">
-        <div className="h-8 bg-secondary rounded-md w-48 mx-auto mb-2 animate-pulse"></div>
+        <div className="h-6 sm:h-8 bg-secondary rounded-md w-36 sm:w-48 mx-auto mb-2 animate-pulse"></div>
         <div className="h-5 bg-secondary rounded-md w-32 mx-auto animate-pulse"></div>
       </div>
 
@@ -537,7 +537,7 @@ function BattleLoadingSkeleton() {
 
           {/* VS divider */}
           <div className="flex items-center justify-center py-1 lg:py-0 lg:w-8">
-            <div className="text-2xl sm:text-3xl font-bold text-muted-foreground">VS</div>
+            <div className="text-xl sm:text-2xl md:text-3xl font-bold text-muted-foreground">VS</div>
           </div>
 
           {/* Post B Skeleton */}

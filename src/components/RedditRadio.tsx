@@ -394,7 +394,7 @@ export function RedditRadio() {
 
   if (!player || !redditUser) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto p-3 sm:p-6">
         <div className="bg-card rounded-lg border p-8 text-center">
           <Radio className="w-16 h-16 mx-auto text-primary mb-4" />
           <h2 className="text-2xl font-bold mb-4">Reddit Radio</h2>
@@ -405,9 +405,9 @@ export function RedditRadio() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="bg-card rounded-lg border p-6">
+      <div className="bg-card rounded-lg border p-4 sm:p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Radio className="w-8 h-8 text-primary" />
@@ -428,7 +428,7 @@ export function RedditRadio() {
 
       {/* Current Playing */}
       {activeStation && (
-        <div className="bg-card rounded-lg border p-6">
+        <div className="bg-card rounded-lg border p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold">Now Playing: {activeStation.name}</h3>
@@ -440,7 +440,7 @@ export function RedditRadio() {
           </div>
 
           {playbackState.currentContent && (
-            <div className="bg-secondary/50 rounded-lg p-4 mb-4">
+            <div className="bg-secondary/50 rounded-lg p-3 sm:p-4 mb-4">
               <div className="flex items-start gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
@@ -507,9 +507,9 @@ export function RedditRadio() {
       )}
 
       {/* Stations List */}
-      <div className="bg-card rounded-lg border p-6">
+      <div className="bg-card rounded-lg border p-4 sm:p-6">
         <h2 className="text-xl font-semibold mb-4">Your Radio Stations</h2>
-
+        
         {stations.length === 0 ? (
           <div className="text-center py-8">
             <Radio className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -523,7 +523,7 @@ export function RedditRadio() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {stations.map((station) => (
               <div
                 key={station.id}
@@ -534,7 +534,7 @@ export function RedditRadio() {
                 }`}
                 onClick={() => startStation(station)}
               >
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between mb-2 sm:mb-3">
                   <h3 className="font-semibold">{station.name}</h3>
                   {activeStation?.id === station.id && (
                     <div className="flex items-center gap-1 text-primary text-xs">
@@ -543,7 +543,7 @@ export function RedditRadio() {
                     </div>
                   )}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-0.5 sm:space-y-1">
                   {station.subreddits.slice(0, 3).map((subreddit) => (
                     <div key={subreddit} className="text-sm text-muted-foreground truncate">
                       r/{subreddit}
@@ -553,7 +553,7 @@ export function RedditRadio() {
                     <div className="text-xs text-muted-foreground">+{station.subreddits.length - 3} more</div>
                   )}
                 </div>
-                <div className="mt-3 text-xs text-muted-foreground flex items-center gap-1">
+                <div className="mt-2 sm:mt-3 text-xs text-muted-foreground flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   Created {new Date(station.created_at).toLocaleDateString()}
                 </div>

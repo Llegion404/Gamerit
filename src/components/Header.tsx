@@ -20,10 +20,10 @@ interface HeaderProps {
 const games = [
   { id: "reddit-battles", name: "Reddit Battles", icon: Target, active: true },
   { id: "meme-market", name: "Meme Market", icon: TrendingUp, active: true },
-  { id: "archaeology", name: "Archaeology", icon: Search, active: true },
-  { id: "subreddit-reigns", name: "Subreddit Reigns", icon: Crown, active: true },
-  { id: "reddit-radio", name: "Reddit Radio", icon: SquareDashedBottomCode, active: true },
-  { id: "reddit-oracle", name: "Reddit Oracle", icon: Crystal, active: true },
+  { id: "subreddit-reigns", name: "Subreddit Reigns", icon: Crown, active: true }, 
+  { id: "archaeology", name: "Archaeology", icon: Search, active: true }, 
+  { id: "reddit-oracle", name: "Reddit Oracle", icon: Crystal, active: true }, 
+  { id: "reddit-radio", name: "Reddit Radio", icon: SquareDashedBottomCode, active: true }, 
   { id: "progression", name: "Progression", icon: Trophy, active: true },
   { id: "coming-soon", name: "Coming soon", icon: SquareDashedBottomCode, active: false },
 ];
@@ -147,7 +147,7 @@ export function Header({
             <div className="md:hidden border-t border-border">
               <div className="px-2 pt-2 pb-3 space-y-3">
                 {player && redditUser ? (
-                  <>
+                  <div className="space-y-3">
                     <div className="bg-secondary border border-border rounded-lg p-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
@@ -190,7 +190,7 @@ export function Header({
                       <LogOut className="w-4 h-4" />
                       <span>Logout</span>
                     </button>
-                  </>
+                  </div>
                 ) : (
                   <button
                     onClick={() => {
@@ -211,7 +211,7 @@ export function Header({
       {/* Game Tabs Subnavbar */}
       <nav className="bg-secondary border-b border-border">
         <div className="container mx-auto px-4">
-          <div className="flex items-center h-12 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center h-12 overflow-x-auto scrollbar-hide gap-1">
             {games.map((game) => {
               const IconComponent = game.icon;
               const isDisabled = isOracleConsulting && activeGame === "reddit-oracle" && game.id !== "reddit-oracle";
@@ -220,7 +220,7 @@ export function Header({
                   key={game.id}
                   onClick={() => !isDisabled && onGameChange(game.id)}
                   disabled={isDisabled}
-                  className={`
+                  className={`flex-shrink-0
                     flex items-center space-x-2 px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed
                     ${
                       activeGame === game.id
