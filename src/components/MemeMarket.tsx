@@ -45,6 +45,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
   const [marketUpdateLoading, setMarketUpdateLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"market" | "portfolio">("market");
   const [selectedStock, setSelectedStock] = useState<MemeStock | null>(null);
+  const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null);
   const [buyAmount, setBuyAmount] = useState("");
   const [sellShares, setSellShares] = useState("");
   const [transactionLoading, setTransactionLoading] = useState(false);
@@ -70,8 +71,9 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
   // Auto-refresh market data every 2 minutes
   useEffect(() => {
     const interval = setInterval(() => {
+      console.log("Auto-refreshing market data...");
       fetchStocks();
-    }, 2 * 60 * 1000); // 2 minutes
+    }, 60 * 1000); // Every minute
 
     return () => clearInterval(interval);
   }, [fetchStocks]);
@@ -281,6 +283,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
   // Update meme market data
   const updateMarketData = async () => {
     setMarketUpdateLoading(true);
+    const startTime = Date.now();
     try {
       // Call the function with create_new_stocks=false to only refresh existing stocks
       const { data, error } = await supabase.functions.invoke("update-meme-market", {
@@ -290,7 +293,9 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
       if (error) throw error;
 
       if (data?.success) {
-        toast.success("Market data refreshed successfully!");
+        const updateTime = new Date().toLocaleTimeString();
+        setLastUpdateTime(updateTime);
+        toast.success(`Market data refreshed at ${updateTime}!`);
         await fetchStocks(); // Refresh stocks after update
       } else {
         throw new Error(data?.error || "Failed to update market");
@@ -299,6 +304,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
       console.error("Error updating market:", error);
       toast.error("Failed to update market data");
     } finally {
+      console.log(`Market update completed in ${Date.now() - startTime}ms`);
       setMarketUpdateLoading(false);
     }
   };
@@ -342,7 +348,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
               <BarChart3 className="h-5 w-5" />
               <h2 className="text-xl font-semibold">Meme Market</h2>
               <span className="ml-2 text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full hidden sm:inline-block">
-                Real Data
+                Live Data
               </span>
             </div>
             <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
@@ -386,9 +392,10 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
               onClick={updateMarketData}
               disabled={marketUpdateLoading}
               className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={lastUpdateTime ? `Last updated: ${lastUpdateTime}` : "Refresh market data"}
             >
               <RefreshCw className={`h-4 w-4 ${marketUpdateLoading ? "animate-spin" : ""}`} />
-              {marketUpdateLoading ? "Refreshing..." : "Refresh Prices"}
+              {marketUpdateLoading ? "Refreshing..." : lastUpdateTime ? "Refresh" : "Refresh Prices"}
             </button>
           </div>
         </div>
@@ -412,6 +419,15 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
                 stocks.map((stock) => {
                   const { trend, percentage } = getStockTrend(stock);
                   const volatility = getVolatilityLevel(stock);
+                  
+                  // Calculate time since last update
+                  let lastUpdateText = "Unknown";
+                  if (stock.history && stock.history.length > 0) {
+                    const lastUpdate = new Date(stock.history[stock.history.length - 1].timestamp);
+                    const now = new Date();
+                    const minutesAgo = Math.floor((now.getTime() - lastUpdate.getTime()) / (1000 * 60));
+                    lastUpdateText = minutesAgo < 1 ? "Just now" : `${minutesAgo}m ago`;
+                  }
 
                   return (
                     <div
@@ -437,7 +453,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
                           </div>
                         </div>
                         <div className="text-right">
-                          <div
+                          <div 
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               trend === "up"
                                 ? "bg-green-100 text-green-800"
@@ -452,7 +468,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
                             {percentage !== 0 ? `${trend === "up" ? "+" : "-"}${percentage.toFixed(1)}%` : "0%"}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            Last hour
+                            {lastUpdateText}
                           </div>
                         </div>
                       </div>
@@ -460,7 +476,7 @@ export function MemeMarket({ player, onRefreshPlayer, redditUsername }: MemeMark
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Zap className="w-4 h-4" />
-                          <span>Real Reddit trends</span>
+                          <span>Live Reddit data</span>
                         </div>
                         <button
                           onClick={() => setSelectedStock(stock)}

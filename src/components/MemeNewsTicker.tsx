@@ -157,6 +157,8 @@ export function MemeNewsTicker() {
   // Generate news items from stocks data
   useEffect(() => {
     if (stocks.length === 0) return;
+    
+    console.log("Generating news items from stocks data...");
 
     const generateNewsItems = () => {
       const items: NewsItem[] = [];
@@ -266,10 +268,11 @@ export function MemeNewsTicker() {
     // Generate initial news
     setNewsItems(generateNewsItems());
 
-    // Regenerate news every 30 seconds
+    // Regenerate news more frequently (every 15 seconds)
     const newsInterval = setInterval(() => {
+      console.log("Regenerating news items...");
       setNewsItems(generateNewsItems());
-    }, 30000);
+    }, 15000);
 
     return () => clearInterval(newsInterval);
   }, [stocks]);
@@ -326,8 +329,8 @@ export function MemeNewsTicker() {
     <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white py-2 overflow-hidden border-y border-blue-500 shadow-md">
       <div className="flex items-center">
         <div className="flex-shrink-0 px-3 border-r border-blue-500 flex items-center gap-2">
-          <Newspaper className="h-4 w-4" />
-          <span className="font-bold text-sm whitespace-nowrap">MEME NEWS NETWORK</span>
+          <Newspaper className="h-4 w-4 animate-pulse" />
+          <span className="font-bold text-sm whitespace-nowrap">LIVE MEME NEWS</span>
         </div>
         <div className="overflow-hidden flex-1 relative">
           <div ref={tickerRef} className="flex whitespace-nowrap">

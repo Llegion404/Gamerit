@@ -94,6 +94,10 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log(`Starting meme market update... (create_new_stocks=${shouldCreateNewStocks})`);
+    
+    // Force a timestamp to ensure cache busting
+    const updateTimestamp = new Date().toISOString();
+    console.log(`Update timestamp: ${updateTimestamp}`);
 
     // Get Reddit access token using client credentials
     const tokenResponse = await fetch("https://www.reddit.com/api/v1/access_token", {
@@ -262,7 +266,8 @@ serve(async (req) => {
         // Calculate new value using enhanced formula
         const baseValue = Math.max(50, Math.floor(keywordData.avgScore * 2));
         const trendMultiplier = 1 + (keywordData.trendScore / 1000);
-        const volatilityFactor = 0.9 + (Math.random() * 0.2); // ±10% random volatility
+        // Increase volatility for more noticeable changes
+        const volatilityFactor = 0.85 + (Math.random() * 0.3); // ±15% random volatility
         const newValue = Math.floor(baseValue * trendMultiplier * volatilityFactor);
         
         // Ensure reasonable bounds (10-5000)
@@ -280,10 +285,12 @@ serve(async (req) => {
         }
       } else {
         // Stock keyword not trending, apply small random volatility
-        const volatilityFactor = 0.95 + (Math.random() * 0.1); // ±5% volatility
+        // Increase volatility for more noticeable changes
+        const volatilityFactor = 0.9 + (Math.random() * 0.2); // ±10% volatility
         const newValue = Math.max(10, Math.floor(stock.current_value * volatilityFactor));
         
-        if (Math.abs(newValue - stock.current_value) > 1) {
+        // Always update to ensure changes are visible
+        if (true) {
           await supabase.rpc("update_stock_history", {
             p_stock_id: stock.id,
             p_new_value: newValue,
@@ -355,6 +362,7 @@ serve(async (req) => {
         message: shouldCreateNewStocks 
           ? "Meme market fully updated with new stocks" 
           : "Existing meme stocks refreshed successfully",
+        timestamp: updateTimestamp,
         stats: {
           posts_analyzed: allPosts.length,
           keywords_found: significantKeywords.length,
