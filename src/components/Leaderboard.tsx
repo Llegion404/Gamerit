@@ -12,10 +12,10 @@ interface BetLeaderboardEntry {
   player_id: string;
   reddit_username: string;
   points: number;
-  total_bet_amount: number;
+  highest_bet_amount: number;
   total_bets: number; 
   win_rate: number;
-  winning_bets: number;
+  total_winnings: number;
 }
 
 interface PortfolioLeaderboardEntry {
@@ -38,7 +38,7 @@ export function Leaderboard({ players, gameMode = "reddit-battles" }: Leaderboar
       const { data, error } = await supabase
         .from("bet_leaderboard")
         .select("*")
-        .order("total_bet_amount", { ascending: false })
+        .order("highest_bet_amount", { ascending: false })
         .limit(10);
 
       if (error) throw error;
@@ -276,7 +276,7 @@ export function Leaderboard({ players, gameMode = "reddit-battles" }: Leaderboar
                           {entry.win_rate}% win rate
                         </span>
                         <span className="hidden sm:inline">•</span>
-                        <span className="hidden sm:inline">{entry.total_winnings.toLocaleString()} won</span>
+                        <span className="hidden sm:inline">{entry.total_winnings?.toLocaleString() || 0} won</span>
                       </div>
                     </div>
                   </div>
