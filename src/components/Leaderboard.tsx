@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 
 interface LeaderboardProps {
+  players: Player[];
 }
 
 interface BetLeaderboardEntry {
@@ -113,8 +114,6 @@ export function Leaderboard({ players }: LeaderboardProps) {
       
       <div className="space-y-2 sm:space-y-3">
         {leaderboardType === "points" ? (
-          )
-          }
           // Points Leaderboard
           players.slice(0, 10).map((player, index) => (
             <div
@@ -128,18 +127,11 @@ export function Leaderboard({ players }: LeaderboardProps) {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm sm:text-base truncate">u/{player.reddit_username}</p>
                   <p className="text-primary text-xs sm:text-sm font-medium">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                      <p className="text-primary text-xs sm:text-sm font-medium">
-                        {entry.total_bet_amount.toLocaleString()} chips bet
-                      </p>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <span>{entry.total_bets} bets</span>
-                        <span className="hidden sm:inline">•</span>
-                        <span className={entry.win_rate > 50 ? "text-green-500" : "text-red-500"}>
-                          {entry.win_rate}% win rate
-                        </span>
-                      </div>
-                    </div>
+                    {player.points.toLocaleString()} chips
+                  </p>
+                </div>
+              </div>
+              {index < 3 && <div className="text-primary font-semibold text-sm sm:text-base shrink-0">#{index + 1}</div>}
             </div>
           ))
         ) : (
@@ -161,13 +153,17 @@ export function Leaderboard({ players }: LeaderboardProps) {
                   {getPositionIcon(index + 1)}
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm sm:text-base truncate">u/{entry.reddit_username}</p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
                       <p className="text-primary text-xs sm:text-sm font-medium">
                         {entry.total_bet_amount.toLocaleString()} chips bet
                       </p>
-                      <span className="text-xs text-muted-foreground">
-                        ({entry.total_bets} bets)
-                      </span>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <span>{entry.total_bets} bets</span>
+                        <span className="hidden sm:inline">•</span>
+                        <span className={entry.win_rate > 50 ? "text-green-500" : "text-red-500"}>
+                          {entry.win_rate}% win rate
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -180,7 +176,4 @@ export function Leaderboard({ players }: LeaderboardProps) {
       </div>
     </div>
   );
-          )
-          )
-  )
 }
