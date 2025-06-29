@@ -1,10 +1,9 @@
 import { Crown, Trophy, Medal, Timer } from "lucide-react";
 import { Player } from "../lib/supabase";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 
 interface LeaderboardProps {
-  players: Player[];
 }
 
 interface BetLeaderboardEntry {
@@ -12,7 +11,9 @@ interface BetLeaderboardEntry {
   reddit_username: string;
   points: number;
   total_bet_amount: number;
-  total_bets: number;
+  total_bets: number; 
+  win_rate: number;
+  winning_bets: number;
 }
 
 export function Leaderboard({ players }: LeaderboardProps) {
@@ -21,27 +22,44 @@ export function Leaderboard({ players }: LeaderboardProps) {
   const [loading, setLoading] = useState(false);
 
   // Fetch bet leaderboard data
-  useEffect(() => {
-    const fetchBetLeaderboard = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from("bet_leaderboard")
-          .select("*")
-          .order("total_bet_amount", { ascending: false })
-          .limit(10);
+  const fetchBetLeaderboard = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("bet_leaderboard")
+        .select("*")
+        .order("total_bet_amount", { ascending: false })
+        .limit(10);
 
-        if (error) throw error;
-        setBetLeaderboard(data || []);
-      } catch (error) {
-        console.error("Error fetching bet leaderboard:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBetLeaderboard();
+      if (error) throw error;
+      setBetLeaderboard(data || []);
+    } catch (error) {
+      console.error("Error fetching bet leaderboard:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Initial fetch and setup refresh interval
+  useEffect(() => {
+    fetchBetLeaderboard();
+    
+    // Refresh leaderboard data every 30 seconds
+    const interval = setInterval(() => {
+      if (leaderboardType === "bets") {
+        fetchBetLeaderboard();
+      }
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [fetchBetLeaderboard, leaderboardType]);
+  
+  // Refresh when switching to bets tab
+  useEffect(() => {
+    if (leaderboardType === "bets") {
+      fetchBetLeaderboard();
+    }
+  }, [leaderboardType, fetchBetLeaderboard]);
 
   const getPositionIcon = (position: number) => {
     switch (position) {
@@ -52,12 +70,13 @@ export function Leaderboard({ players }: LeaderboardProps) {
       case 3:
         return <Medal className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />;
       default:
-        return null;
+        return (
+          <span className="w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-primary font-semibold text-xs sm:text-sm">
+            {position}
+          </span>
+        );
     }
   };
-
-  // Sort players by points
-  const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
 
   return (
     <div className="bg-card rounded-lg border p-4 sm:p-6">
@@ -95,7 +114,7 @@ export function Leaderboard({ players }: LeaderboardProps) {
       <div className="space-y-2 sm:space-y-3">
         {leaderboardType === "points" ? (
           // Points Leaderboard
-          sortedPlayers.slice(0, 10).map((player, index) => (
+          players.slice(0, 10).map((player, index) => (
             <div
               key={player.id}
               className={`flex items-center justify-between p-2 sm:p-3 rounded-md transition-colors hover:bg-accent ${
@@ -107,12 +126,18 @@ export function Leaderboard({ players }: LeaderboardProps) {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm sm:text-base truncate">u/{player.reddit_username}</p>
                   <p className="text-primary text-xs sm:text-sm font-medium">
-                    {player.points.toLocaleString()} chips
-                  </p>
-                </div>
-              </div>
-
-              {index < 3 && <div className="text-primary font-semibold text-sm sm:text-base shrink-0">#{index + 1}</div>}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                      <p className="text-primary text-xs sm:text-sm font-medium">
+                        {entry.total_bet_amount.toLocaleString()} chips bet
+                      </p>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <span>{entry.total_bets} bets</span>
+                        <span className="hidden sm:inline">•</span>
+                        <span className={entry.win_rate > 50 ? "text-green-500" : "text-red-500"}>
+                          {entry.win_rate}% win rate
+                        </span>
+                      </div>
+                    </div>
             </div>
           ))
         ) : (
@@ -153,4 +178,3 @@ export function Leaderboard({ players }: LeaderboardProps) {
       </div>
     </div>
   );
-}
