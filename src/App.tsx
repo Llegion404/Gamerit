@@ -12,6 +12,7 @@ import { useGameData } from "./hooks/useGameData";
 import { useRoundManager } from "./hooks/useRoundManager";
 import { useHotPotatoManager } from "./hooks/useHotPotatoManager";
 import { useProgression } from "./hooks/useProgression";
+import { SubredditReigns } from "./components/SubredditReigns";
 import { Loader2 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import Archaeology from "./components/Archaeology";
@@ -208,6 +209,14 @@ function App() {
         {activeGame === "coming-soon" && <ComingSoon />}
 
         {activeGame === "reddit-radio" && <RedditRadio />}
+        
+        {activeGame === "subreddit-reigns" && (
+          <SubredditReigns 
+            player={player} 
+            onRefreshPlayer={refreshPlayer} 
+            redditUsername={redditUser?.name} 
+          />
+        )}
 
         {activeGame === "reddit-oracle" && (
           <RedditOracle 
@@ -235,6 +244,15 @@ function App() {
           <p className="text-xs sm:text-sm text-muted-foreground mt-2">
             🎯 Battle • 📈 Trade • 🦴 Explore • 🏆 Compete • ⭐ Progress
           </p>
+          <div className="mt-3 sm:mt-4 text-muted-foreground text-xs space-y-1">
+            <p>• Reddit Battles: Bet on post performance and win big</p>
+            <p>• Meme Market: Trade trending keywords like stocks</p>
+            <p>• Archaeology: Discover the deepest comment chains</p>
+            <p>• Subreddit Reigns: Master the hivemind of different communities</p>
+            <p>• Reddit Oracle: Ask questions and receive mystical wisdom from random Reddit comments</p>
+            <p>• Progression: Level up and unlock achievements as you play</p>
+            <p>• Start with 1,000 free Karma Chips • Claim 50 welfare chips daily when broke</p>
+          </div>
         </div>
       </footer>
 

@@ -2,7 +2,7 @@ import { Trophy, User, LogOut, Gift, Sun, Moon, Menu, X, Target, TrendingUp, Sea
 import { useState } from "react";
 import { Player } from "../lib/supabase";
 import { RedditUser } from "../lib/reddit-auth";
-import { useTheme } from "../hooks/useTheme";
+import { useTheme } from "../hooks/useTheme"; 
 import ProgressionSystem from "./ProgressionSystem";
 
 interface HeaderProps {
@@ -21,6 +21,7 @@ const games = [
   { id: "reddit-battles", name: "Reddit Battles", icon: Target, active: true },
   { id: "meme-market", name: "Meme Market", icon: TrendingUp, active: true },
   { id: "archaeology", name: "Archaeology", icon: Search, active: true },
+  { id: "subreddit-reigns", name: "Subreddit Reigns", icon: Crown, active: true },
   { id: "reddit-radio", name: "Reddit Radio", icon: SquareDashedBottomCode, active: true },
   { id: "reddit-oracle", name: "Reddit Oracle", icon: Crystal, active: true },
   { id: "progression", name: "Progression", icon: Trophy, active: true },
