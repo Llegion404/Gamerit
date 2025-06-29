@@ -234,7 +234,7 @@ function App() {
           <p className="text-muted-foreground text-sm sm:text-base">Gamerit - The Ultimate Reddit Gaming Platform</p>
           <p className="text-xs sm:text-sm text-muted-foreground mt-2">
             🎯 Battle • 📈 Trade • 🦴 Explore • 🏆 Compete • ⭐ Progress
-          </div>
+          </p>
         </div>
       </footer>
 
