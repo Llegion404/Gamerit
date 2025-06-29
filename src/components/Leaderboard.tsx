@@ -3,8 +3,10 @@ import { Player } from "../lib/supabase";
 
 interface LeaderboardProps {
   players: Player[];
+}
 
 export function Leaderboard({ players }: LeaderboardProps) {
+}
 export function Leaderboard({ players }: LeaderboardProps) {
     switch (position) {
       case 1:
@@ -13,6 +15,7 @@ export function Leaderboard({ players }: LeaderboardProps) {
         return <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />;
         <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-primary mr-2" />
         Leaderboard
+    }
   // Sort players by points
   const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
       <div className="space-y-2 sm:space-y-3">
@@ -36,5 +39,8 @@ export function Leaderboard({ players }: LeaderboardProps) {
         ))}
       </div>
     </div>
-  );
+        );
+      )
+      }
+
 }
