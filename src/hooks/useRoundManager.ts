@@ -181,6 +181,19 @@ export function useRoundManager() {
     }, 5 * 60 * 60 * 1000); // 5 hours
   }, [checkAndManageRounds]);
 
+  // Add a function to manually create a round with better error handling
+  const manuallyCreateRound = useCallback(async () => {
+    try {
+      console.log("Manually creating a new round...");
+      const result = await createNewRound();
+      console.log("Manual round creation successful:", result);
+      return result;
+    } catch (error) {
+      console.error("Manual round creation failed:", error);
+      throw error;
+    }
+  }, [createNewRound]);
+
   const stopRoundMonitoring = useCallback(() => {
     console.log("Stopping round monitoring...");
     if (intervalRef.current) {
@@ -204,6 +217,7 @@ export function useRoundManager() {
     checkAndManageRounds,
     createNewRound,
     endRound,
+    manuallyCreateRound,
     startRoundMonitoring,
     stopRoundMonitoring,
   };

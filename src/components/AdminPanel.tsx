@@ -1,5 +1,6 @@
-import { RefreshCw, TrendingUp } from "lucide-react";
+import { RefreshCw, TrendingUp, Plus } from "lucide-react";
 import { useGameData } from "../hooks/useGameData";
+import { useRoundManager } from "../hooks/useRoundManager";
 import { useState, useCallback } from "react";
 import toast from "react-hot-toast";
 
@@ -13,7 +14,9 @@ const REFRESH_DELAY_SLOW = 2000; // 2 seconds
 
 export function AdminPanel() {
   const { currentRounds, previousRounds, refreshData } = useGameData();
+  const { manuallyCreateRound } = useRoundManager();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isCreatingRound, setIsCreatingRound] = useState(false);
 
   const refreshDataWithRetry = useCallback(() => {
     // Immediate refresh
@@ -38,6 +41,30 @@ export function AdminPanel() {
     } catch {
       setIsRefreshing(false);
       toast.error("Failed to refresh data");
+    }
+  };
+
+  const handleCreateRound = async () => {
+    if (currentRounds && currentRounds.length >= 10) {
+      toast.error("Maximum number of active rounds (10) reached");
+      return;
+    }
+    
+    setIsCreatingRound(true);
+    
+    try {
+      await manuallyCreateRound();
+      toast.success("New battle created successfully! 🎯");
+      
+      // Refresh data after a short delay to see the new round
+      setTimeout(() => {
+        refreshDataWithRetry();
+      }, 1000);
+    } catch (error) {
+      console.error("Failed to create new round:", error);
+      toast.error("Failed to create new round");
+    } finally {
+      setIsCreatingRound(false);
     }
   };
 
@@ -67,6 +94,33 @@ export function AdminPanel() {
       </div>
 
       {/* Manual Refresh Button */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 sm:p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800 gap-2 sm:gap-0 mb-3 sm:mb-4">
+        <div className="flex-1">
+          <h3 className="font-medium text-green-700 dark:text-green-300 text-sm sm:text-base">Create New Battle</h3>
+          <p className="text-green-600 dark:text-green-400 text-xs sm:text-sm">
+            Manually create a new Reddit battle
+          </p>
+        </div>
+        <button
+          onClick={handleCreateRound}
+          disabled={isCreatingRound || (currentRounds && currentRounds.length >= 10)}
+          className="flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+        >
+          {isCreatingRound ? (
+            <>
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4" />
+              Create Battle
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Refresh Button */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 sm:p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 gap-2 sm:gap-0">
         <div className="flex-1">
           <h3 className="font-medium text-blue-700 dark:text-blue-300 text-sm sm:text-base">Refresh Data</h3>

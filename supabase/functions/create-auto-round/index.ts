@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
 
     // Get previously used post IDs from recent rounds (last 50 rounds to avoid reusing recent posts)
     const recentRoundsResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/game_rounds?select=post_a_id,post_b_id&order=created_at.desc&limit=50`,
+      `${SUPABASE_URL}/rest/v1/game_rounds?select=post_a_id,post_b_id,post_a_subreddit,post_b_subreddit&order=created_at.desc&limit=100`,
       {
         headers: {
           Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
@@ -100,15 +100,23 @@ Deno.serve(async (req) => {
 
     const recentRounds = await recentRoundsResponse.json();
     const usedPostIds = new Set<string>();
+    const usedSubredditPairs = new Set<string>();
     
     if (recentRounds && Array.isArray(recentRounds)) {
       recentRounds.forEach((round: any) => {
         if (round.post_a_id) usedPostIds.add(round.post_a_id);
         if (round.post_b_id) usedPostIds.add(round.post_b_id);
+        
+        // Track subreddit pairs to avoid repeating the same subreddit matchups
+        if (round.post_a_subreddit && round.post_b_subreddit) {
+          // Store both combinations to ensure uniqueness regardless of order
+          usedSubredditPairs.add(`${round.post_a_subreddit}-${round.post_b_subreddit}`);
+          usedSubredditPairs.add(`${round.post_b_subreddit}-${round.post_a_subreddit}`);
+        }
       });
     }
 
-    console.log(`Found ${usedPostIds.size} previously used post IDs to avoid`);
+    console.log(`Found ${usedPostIds.size} previously used post IDs and ${usedSubredditPairs.size/2} subreddit pairs to avoid`);
 
     // Get Reddit access token using client credentials
     const tokenResponse = await fetch("https://www.reddit.com/api/v1/access_token", {
@@ -153,16 +161,20 @@ Deno.serve(async (req) => {
 
     // Randomly select subreddits and fetch more posts to increase variety
     const shuffled = subreddits.sort(() => 0.5 - Math.random());
-    const selectedSubreddits = shuffled.slice(0, 6); // Use more subreddits for better variety
+    const selectedSubreddits = shuffled.slice(0, 8); // Use more subreddits for better variety
 
     console.log(`Fetching posts from: ${selectedSubreddits.join(", ")}`);
 
     // Fetch posts from multiple subreddits and endpoints for maximum variety
     const allPosts: RedditPost[] = [];
 
+    // Track how many posts we've fetched from each subreddit to ensure balance
+    const subredditPostCounts: Record<string, number> = {};
+    
     for (const subreddit of selectedSubreddits) {
       // Fetch from multiple endpoints to get more variety
       const endpoints = ["hot", "top?t=day", "top?t=week"];
+      let postsFromThisSubreddit = 0;
       
       for (const endpoint of endpoints) {
         try {
@@ -198,7 +210,15 @@ Deno.serve(async (req) => {
               }));
 
             allPosts.push(...subredditPosts);
-            console.log(`Found ${subredditPosts.length} unused posts from r/${subreddit}/${endpoint}`);
+            postsFromThisSubreddit += subredditPosts.length;
+            subredditPostCounts[subreddit] = (subredditPostCounts[subreddit] || 0) + subredditPosts.length;
+            console.log(`Found ${subredditPosts.length} unused posts from r/${subreddit}/${endpoint}, total: ${postsFromThisSubreddit}`);
+            
+            // Limit posts per subreddit to ensure variety
+            if (postsFromThisSubreddit >= 15) {
+              console.log(`Reached limit of 15 posts for r/${subreddit}, moving to next subreddit`);
+              break;
+            }
           }
         } catch (error) {
           console.error(`Error fetching from r/${subreddit}/${endpoint}:`, error);
@@ -209,7 +229,12 @@ Deno.serve(async (req) => {
     // Remove duplicates by post ID
     const uniquePosts = Array.from(new Map(allPosts.map(post => [post.id, post])).values());
     
-    console.log(`Total unique unused posts collected: ${uniquePosts.length}`);
+    // Log subreddit distribution
+    console.log("Posts per subreddit:", Object.entries(subredditPostCounts)
+      .map(([sub, count]) => `r/${sub}: ${count}`)
+      .join(", "));
+    
+    console.log(`Total unique unused posts collected: ${uniquePosts.length} from ${Object.keys(subredditPostCounts).length} subreddits`);
 
     if (uniquePosts.length < 2) {
       throw new Error("Not enough unique unused posts found to create a round");
@@ -218,20 +243,55 @@ Deno.serve(async (req) => {
     // Sort by score and select two posts from different subreddits if possible
     uniquePosts.sort((a, b) => b.score - a.score);
     
-    let postA = uniquePosts[0];
-    let postB = null;
-
-    // Try to find a post from a different subreddit for variety
-    for (let i = 1; i < uniquePosts.length; i++) {
-      if (uniquePosts[i].subreddit !== postA.subreddit) {
-        postB = uniquePosts[i];
-        break;
+    // Create a more sophisticated selection algorithm to ensure variety
+    // First, try to find posts from subreddits that haven't been paired recently
+    let validPairs: [RedditPost, RedditPost][] = [];
+    
+    for (let i = 0; i < uniquePosts.length; i++) {
+      for (let j = i + 1; j < uniquePosts.length; j++) {
+        const postA = uniquePosts[i];
+        const postB = uniquePosts[j];
+        
+        // Skip if posts are from the same subreddit
+        if (postA.subreddit === postB.subreddit) continue;
+        
+        // Skip if this subreddit pair was recently used
+        const pairKey = `${postA.subreddit}-${postB.subreddit}`;
+        const reversePairKey = `${postB.subreddit}-${postA.subreddit}`;
+        
+        if (usedSubredditPairs.has(pairKey) || usedSubredditPairs.has(reversePairKey)) continue;
+        
+        // This is a valid pair
+        validPairs.push([postA, postB]);
       }
     }
+    
+    // If we found valid pairs that haven't been used recently, use one of those
+    let postA, postB;
+    
+    if (validPairs.length > 0) {
+      // Pick a random pair from the valid ones
+      const randomPair = validPairs[Math.floor(Math.random() * validPairs.length)];
+      [postA, postB] = randomPair;
+      console.log(`Selected unique subreddit pair: r/${postA.subreddit} vs r/${postB.subreddit}`);
+    } else {
+      // Fallback to the original algorithm if no unique pairs are available
+      console.log("No unique subreddit pairs available, falling back to default selection");
+      postA = uniquePosts[0];
+      postB = null;
 
-    // If no different subreddit found, just use the second highest scoring post
-    if (!postB && uniquePosts.length > 1) {
-      postB = uniquePosts[1];
+      // Try to find a post from a different subreddit for variety
+      for (let i = 1; i < uniquePosts.length; i++) {
+        if (uniquePosts[i].subreddit !== postA.subreddit) {
+          postB = uniquePosts[i];
+          break;
+        }
+      }
+      
+      // If no different subreddit found, just use the second highest scoring post
+      if (!postB && uniquePosts.length > 1) {
+        postB = uniquePosts[1];
+      }
     }
 
     if (!postB) {
@@ -281,8 +341,10 @@ Deno.serve(async (req) => {
         success: true,
         message: "Unique round created successfully",
         round: newRound[0],
+        subreddit_pair: `${postA.subreddit} vs ${postB.subreddit}`,
         postsAvailable: uniquePosts.length,
         usedPostsFiltered: usedPostIds.size,
+        uniquePairsFound: validPairs.length,
       }),
       {
         status: 200,
