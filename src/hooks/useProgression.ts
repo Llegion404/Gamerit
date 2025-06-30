@@ -178,6 +178,8 @@ export function useProgression(redditUsername: string | null) {
     if (!redditUsername) return;
 
     try {
+      console.log(`Awarding ${amount} XP to ${redditUsername} for: ${reason}`);
+      
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/award-xp`, {
         method: "POST",
         headers: {
@@ -192,14 +194,24 @@ export function useProgression(redditUsername: string | null) {
         }),
       });
 
+      console.log(`XP award response status: ${response.status}`);
+      
       const result = await response.json();
+      console.log("XP award result:", result);
 
       if (!response.ok) {
+        console.error("XP award failed:", result);
         throw new Error(result.error || "Failed to award XP");
       }
 
+      if (result.success) {
+        console.log(`Successfully awarded ${amount} XP. New total: ${result.new_xp}, Level: ${result.new_level}`);
+        
+        // Force refresh progression data to show updated values immediately
+        await fetchProgression();
+      }
+
       // Refresh progression data
-      await fetchProgression();
 
       return result;
     } catch (err) {

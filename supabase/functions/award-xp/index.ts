@@ -12,7 +12,10 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "");
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "", 
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
 
     const { reddit_username, xp_amount, reason, metadata } = await req.json();
 
@@ -23,50 +26,126 @@ serve(async (req) => {
       });
     }
 
-    // Award XP using the database function
-    const { data: xpResult, error: xpError } = await supabaseClient.rpc("award_xp", {
-      player_reddit_username: reddit_username,
-      xp_amount: xp_amount,
-      reason: reason,
-      metadata_json: metadata || {},
-    });
+    console.log(`Awarding ${xp_amount} XP to ${reddit_username} for: ${reason}`);
 
-    if (xpError) {
-      console.error("Error awarding XP:", xpError);
-      return new Response(JSON.stringify({ error: "Failed to award XP", details: xpError.message }), {
+    // First, get the player to ensure they exist
+    const { data: player, error: playerError } = await supabaseClient
+      .from("players")
+      .select("id, xp, level, reddit_username")
+      .eq("reddit_username", reddit_username)
+      .single();
+
+    if (playerError || !player) {
+      console.error("Player not found:", playerError);
+      return new Response(JSON.stringify({ error: "Player not found", details: playerError?.message }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`Found player: ${player.reddit_username}, current XP: ${player.xp}, level: ${player.level}`);
+
+    // Calculate new XP and level
+    const oldXP = player.xp || 0;
+    const newXP = oldXP + xp_amount;
+    const oldLevel = player.level || 1;
+    
+    // Level calculation: Level 2 = 100 XP, Level 3 = 300 XP, Level 4 = 600 XP, etc.
+    let newLevel = 1;
+    let totalXPNeeded = 0;
+    
+    while (totalXPNeeded <= newXP) {
+      newLevel++;
+      totalXPNeeded += (newLevel - 1) * 100;
+    }
+    newLevel--; // Adjust back to the correct level
+    
+    const levelUp = newLevel > oldLevel;
+
+    console.log(`XP calculation: ${oldXP} + ${xp_amount} = ${newXP}, level: ${oldLevel} -> ${newLevel}, levelUp: ${levelUp}`);
+
+    // Update player XP and level in a transaction
+    const { data: updatedPlayer, error: updateError } = await supabaseClient
+      .from("players")
+      .update({
+        xp: newXP,
+        level: newLevel,
+      })
+      .eq("id", player.id)
+      .select("xp, level")
+      .single();
+
+    if (updateError) {
+      console.error("Error updating player XP:", updateError);
+      return new Response(JSON.stringify({ error: "Failed to update player XP", details: updateError.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Check for new achievements
-    const { data: achievementResults, error: achievementError } = await supabaseClient.rpc("check_achievements", {
-      player_reddit_username: reddit_username,
-    });
+    console.log(`Player updated successfully: XP=${updatedPlayer.xp}, Level=${updatedPlayer.level}`);
 
-    if (achievementError) {
-      console.error("Error checking achievements:", achievementError);
-      // Don't fail the request if achievement checking fails
+    // Record the XP transaction
+    const { error: transactionError } = await supabaseClient
+      .from("xp_transactions")
+      .insert({
+        player_id: player.id,
+        amount: xp_amount,
+        reason: reason,
+        metadata: metadata || {},
+      });
+
+    if (transactionError) {
+      console.error("Error recording XP transaction:", transactionError);
+      // Don't fail the request if transaction recording fails, but log it
     }
 
-    const levelUpOccurred = xpResult && xpResult.length > 0 && xpResult[0].level_up;
-    const newAchievements = achievementResults?.filter((a) => a.newly_completed) || [];
+    // Check for new achievements if level up occurred
+    let newAchievements: string[] = [];
+    if (levelUp) {
+      try {
+        const { data: achievementResults, error: achievementError } = await supabaseClient.rpc("check_achievements", {
+          player_reddit_username: reddit_username,
+        });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        xp_awarded: xp_amount,
-        old_level: xpResult?.[0]?.old_level,
-        new_level: xpResult?.[0]?.new_level,
-        total_xp: xpResult?.[0]?.total_xp,
-        level_up: levelUpOccurred,
-        new_achievements: newAchievements.map((a) => a.achievement_name),
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+        if (achievementError) {
+          console.error("Error checking achievements:", achievementError);
+        } else if (achievementResults) {
+          newAchievements = achievementResults
+            .filter((a: any) => a.newly_completed)
+            .map((a: any) => a.achievement_name);
+        }
+      } catch (error) {
+        console.error("Achievement check failed:", error);
+        // Don't fail the XP award if achievement checking fails
+      }
+    }
+
+    const response = {
+      success: true,
+      xp_awarded: xp_amount,
+      old_xp: oldXP,
+      new_xp: newXP,
+      old_level: oldLevel,
+      new_level: newLevel,
+      total_xp: newXP,
+      level_up: levelUp,
+      new_achievements: newAchievements,
+      player_id: player.id,
+    };
+
+    console.log("XP award response:", response);
+
+    return new Response(JSON.stringify(response), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Error in award-xp function:", error);
-    return new Response(JSON.stringify({ error: "Internal server error", details: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: "Internal server error", 
+      details: error.message,
+      stack: error.stack 
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

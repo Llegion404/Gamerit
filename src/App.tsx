@@ -89,6 +89,8 @@ function App() {
           timestamp: new Date().toISOString(),
         });
 
+        console.log("XP award result in App:", xpResult);
+
         if (xpResult?.level_up) { 
           toast.success(`🎉 Level up! You are now level ${xpResult.new_level}!`);
         }
