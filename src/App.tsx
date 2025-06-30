@@ -19,6 +19,7 @@ import Archaeology from "./components/Archaeology";
 import { ComingSoon } from "./components/ComingSoon";
 import RedditRadio from "./components/RedditRadio";
 import { RedditOracle } from "./components/RedditOracle";
+import { MemeTerminal } from "./components/MemeTerminal";
 import { useState as useAppState } from "react";
 
 function App() {
@@ -196,13 +197,8 @@ function App() {
 
         {activeGame === "meme-market" && ( 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-            <div className="lg:col-span-2">
-              <MemeMarket player={player} onRefreshPlayer={refreshPlayer} redditUsername={redditUser?.name} />
-            </div>
-            <div className="space-y-4 sm:space-y-6 order-first lg:order-last">
-              <Leaderboard players={leaderboard} gameMode={activeGame} />
-              {/* Admin Panel - only show if user is logged in */}
-              {redditUser && <AdminPanel />}
+            <div className="lg:col-span-3">
+              <MemeTerminal />
             </div>
           </div>
         )}

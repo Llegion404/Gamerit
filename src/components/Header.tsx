@@ -19,7 +19,7 @@ interface HeaderProps {
 
 const games = [
   { id: "reddit-battles", name: "Reddit Battles", icon: Target, active: true },
-  { id: "meme-market", name: "Meme Market", icon: TrendingUp, active: true },
+  { id: "meme-market", name: "Meme Terminal", icon: TrendingUp, active: true },
   { id: "subreddit-reigns", name: "Subreddit Reigns", icon: Crown, active: true }, 
   { id: "archaeology", name: "Archaeology", icon: Search, active: true }, 
   { id: "reddit-oracle", name: "Reddit Oracle", icon: Crystal, active: true }, 

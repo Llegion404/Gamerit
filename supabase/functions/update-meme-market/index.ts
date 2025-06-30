@@ -172,7 +172,7 @@ serve(async (req) => {
     // Enhanced keyword extraction and analysis
     const keywordCounts: Map<string, KeywordData> = new Map();
 
-    // Expanded stop words list
+    // Expanded stop words list (financial terms added)
     const stopWords = new Set([
       "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by",
       "this", "that", "these", "those", "i", "you", "he", "she", "it", "we", "they", "me", "him",
@@ -189,6 +189,8 @@ serve(async (req) => {
       "watch", "follow", "stop", "create", "speak", "read", "allow", "add", "spend", "grow", "open",
       "walk", "win", "offer", "remember", "love", "consider", "appear", "buy", "wait", "serve", "die",
       "send", "expect", "build", "stay", "fall", "cut", "reach", "kill", "remain"
+      // Financial/trading terms that should be included as meme stocks
+      // "stonks", "hodl", "diamond", "hands", "moon", "rocket", "ape", "tendies", "yolo", "fomo"
     ]);
 
     // Analyze posts for meme keywords
@@ -213,8 +215,8 @@ serve(async (req) => {
           
           // Calculate trend score based on recency and engagement
           const hoursOld = (Date.now() / 1000 - post.created_utc) / 3600;
-          const recencyBonus = Math.max(0, 24 - hoursOld) / 24; // Bonus for recent posts
-          const engagementScore = post.score * post.upvote_ratio * (post.num_comments / 10);
+          const recencyBonus = Math.max(0, 48 - hoursOld) / 48; // Bonus for recent posts (48h window)
+          const engagementScore = post.score * post.upvote_ratio * (post.num_comments / 5); // Higher comment weight
           current.trendScore += engagementScore * (1 + recencyBonus);
           
           keywordCounts.set(word, current);
@@ -225,10 +227,10 @@ serve(async (req) => {
     // Filter for significant keywords with enhanced criteria
     const significantKeywords = Array.from(keywordCounts.entries())
       .filter(([_, data]) => 
-        data.posts >= 3 && // Appeared in at least 3 posts
-        data.count >= 5 && // Mentioned at least 5 times total
-        data.avgScore >= 20 && // Average post score of 20+
-        data.trendScore >= 100 // Minimum trend score
+        data.posts >= 2 && // Appeared in at least 2 posts (lowered threshold)
+        data.count >= 3 && // Mentioned at least 3 times total (lowered threshold)
+        data.avgScore >= 15 && // Average post score of 15+ (lowered threshold)
+        data.trendScore >= 50 // Minimum trend score (lowered threshold)
       )
       .sort((a, b) => b[1].trendScore - a[1].trendScore); // Sort by trend score
 
@@ -264,14 +266,14 @@ serve(async (req) => {
       
       if (keywordData) {
         // Calculate new value using enhanced formula
-        const baseValue = Math.max(50, Math.floor(keywordData.avgScore * 2));
-        const trendMultiplier = 1 + (keywordData.trendScore / 1000);
+        const baseValue = Math.max(25, Math.floor(keywordData.avgScore * 1.5)); // Lower base value
+        const trendMultiplier = 1 + (keywordData.trendScore / 500); // More sensitive to trends
         // Increase volatility for more noticeable changes
-        const volatilityFactor = 0.85 + (Math.random() * 0.3); // ±15% random volatility
+        const volatilityFactor = 0.8 + (Math.random() * 0.4); // ±20% random volatility
         const newValue = Math.floor(baseValue * trendMultiplier * volatilityFactor);
         
-        // Ensure reasonable bounds (10-5000)
-        const finalValue = Math.max(10, Math.min(5000, newValue));
+        // Ensure reasonable bounds (5-10000) - wider range for more excitement
+        const finalValue = Math.max(5, Math.min(10000, newValue));
 
         // Update stock with history tracking
         const { error: updateError } = await supabase.rpc("update_stock_history", {
@@ -285,12 +287,12 @@ serve(async (req) => {
         }
       } else {
         // Stock keyword not trending, apply small random volatility
-        // Increase volatility for more noticeable changes
-        const volatilityFactor = 0.9 + (Math.random() * 0.2); // ±10% volatility
+        // Increase volatility for more noticeable changes even when not trending
+        const volatilityFactor = 0.85 + (Math.random() * 0.3); // ±15% volatility
         const newValue = Math.max(10, Math.floor(stock.current_value * volatilityFactor));
         
-        // Always update to ensure changes are visible
-        if (true) {
+        // Only update if change is significant enough to be visible
+        if (Math.abs(newValue - stock.current_value) >= Math.max(1, stock.current_value * 0.02)) {
           await supabase.rpc("update_stock_history", {
             p_stock_id: stock.id,
             p_new_value: newValue,
@@ -321,7 +323,7 @@ serve(async (req) => {
 
     // Add new trending stocks
     const currentActiveCount = activeStocks.length - deactivatedCount;
-    const maxStocks = 15; // Increased from 10
+    const maxStocks = 20; // Increased for more variety
     const slotsAvailable = Math.max(0, maxStocks - currentActiveCount);
 
     // Only create new stocks if explicitly requested (weekly cron job)
@@ -332,10 +334,10 @@ serve(async (req) => {
         .slice(0, slotsAvailable);
 
       for (const [keyword, data] of newKeywords) {
-        const baseValue = Math.max(50, Math.floor(data.avgScore * 2));
-        const trendMultiplier = 1 + (data.trendScore / 1000);
+        const baseValue = Math.max(25, Math.floor(data.avgScore * 1.5));
+        const trendMultiplier = 1 + (data.trendScore / 500);
         const initialValue = Math.floor(baseValue * trendMultiplier);
-        const finalValue = Math.max(10, Math.min(5000, initialValue));
+        const finalValue = Math.max(5, Math.min(10000, initialValue));
 
         const { error: insertError } = await supabase
           .from("meme_stocks")
