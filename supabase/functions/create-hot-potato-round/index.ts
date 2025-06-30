@@ -194,21 +194,38 @@ serve(async (req) => {
         .sort((a, b) => b.num_comments - a.num_comments); // Sort by comment count
 
       if (relaxedPosts.length === 0) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "No suitable posts found in any subreddit",
-            searched_subreddits: shuffledSubreddits.slice(0, 3),
-            total_posts_found: allControversialPosts.length,
-          }),
-          {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 404,
-          }
-        );
+        // Final fallback: use any available post from allControversialPosts
+        const fallbackPosts = allControversialPosts
+          .filter((post) => {
+            return (
+              !post.title.includes("[deleted]") &&
+              !post.title.includes("[removed]") &&
+              post.title.length > 10
+            );
+          })
+          .sort(() => 0.5 - Math.random()); // Random selection
+
+        if (fallbackPosts.length === 0) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "No suitable posts found in any subreddit",
+              searched_subreddits: shuffledSubreddits.slice(0, 3),
+              total_posts_found: allControversialPosts.length,
+            }),
+            {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 404,
+            }
+          );
+        }
+        
+        controversialPosts.push(...fallbackPosts.slice(0, 1));
       }
       
-      controversialPosts.push(...relaxedPosts.slice(0, 5));
+      if (relaxedPosts.length > 0) {
+        controversialPosts.push(...relaxedPosts.slice(0, 5));
+      }
     }
 
     // Get previously used post IDs to avoid duplicates
@@ -224,16 +241,32 @@ serve(async (req) => {
     const availablePosts = controversialPosts.filter(post => !usedPostIds.has(post.id));
     
     if (availablePosts.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "No new controversial posts found (all recent posts already used)",
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 404,
-        }
-      );
+      // Final fallback: use any post from allControversialPosts that hasn't been used recently
+      const finalFallbackPosts = allControversialPosts
+        .filter((post) => {
+          return (
+            !usedPostIds.has(post.id) &&
+            !post.title.includes("[deleted]") &&
+            !post.title.includes("[removed]") &&
+            post.title.length > 10
+          );
+        })
+        .sort(() => 0.5 - Math.random());
+
+      if (finalFallbackPosts.length === 0) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "No new posts found (all recent posts already used)",
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 404,
+          }
+        );
+      }
+      
+      availablePosts.push(finalFallbackPosts[0]);
     }
 
     const selectedPost = availablePosts[0];
