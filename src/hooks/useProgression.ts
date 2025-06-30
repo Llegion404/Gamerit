@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 
 export interface Achievement {
@@ -39,12 +39,24 @@ export interface XPTransaction {
 }
 
 export function useProgression(redditUsername: string | null) {
-  const [progression, setProgression] = useState<PlayerProgression | null>(null);
+  const [progression, setProgression] = useState<PlayerProgression | null>(
+    null,
+  );
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [playerAchievements, setPlayerAchievements] = useState<PlayerAchievement[]>([]);
+  const [playerAchievements, setPlayerAchievements] = useState<
+    PlayerAchievement[]
+  >([]);
   const [recentXP, setRecentXP] = useState<XPTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Prevent duplicate loading states
+  const loadingStates = useRef({
+    progression: false,
+    achievements: false,
+    playerAchievements: false,
+    recentXP: false,
+  });
 
   // Calculate XP needed for next level
   const getXPForNextLevel = (currentLevel: number): number => {
@@ -56,7 +68,11 @@ export function useProgression(redditUsername: string | null) {
     return totalXPNeeded;
   };
 
-  const getXPProgress = (): { current: number; needed: number; percentage: number } => {
+  const getXPProgress = (): {
+    current: number;
+    needed: number;
+    percentage: number;
+  } => {
     if (!progression) return { current: 0, needed: 100, percentage: 0 };
 
     const currentLevelXP = getXPForNextLevel(progression.level - 1);
@@ -72,16 +88,17 @@ export function useProgression(redditUsername: string | null) {
   };
 
   const fetchProgression = useCallback(async () => {
-    if (!redditUsername) return;
+    if (!redditUsername || loadingStates.current.progression) return;
 
     try {
+      loadingStates.current.progression = true;
       setLoading(true);
 
-      // Get player progression data
+      // Get player progression data first to get player ID
       const { data: playerData, error: playerError } = await supabase
         .from("players")
         .select(
-          "id, xp, level, total_karma_chips_earned, total_karma_chips_lost, lowest_karma_chips, highest_karma_chips"
+          "id, xp, level, total_karma_chips_earned, total_karma_chips_lost, lowest_karma_chips, highest_karma_chips",
         )
         .eq("reddit_username", redditUsername)
         .single();
@@ -99,103 +116,121 @@ export function useProgression(redditUsername: string | null) {
           lowest_karma_chips: playerData.lowest_karma_chips,
           highest_karma_chips: playerData.highest_karma_chips,
         });
-      }
 
-      // Get all achievements
-      const { data: achievementsData, error: achievementsError } = await supabase
-        .from("achievements")
-        .select("*")
-        .order("requirement_value", { ascending: true });
+        // Load other data in parallel once we have player ID
+        const [achievementsResult, playerAchievementsResult, recentXPResult] =
+          await Promise.allSettled([
+            // Get all achievements
+            supabase
+              .from("achievements")
+              .select("*")
+              .order("requirement_value", { ascending: true }),
 
-      if (achievementsError) {
-        throw achievementsError;
-      }
-
-      setAchievements(achievementsData || []);
-
-      // Get player achievement progress
-      if (playerData) {
-        const { data: playerAchievementsData, error: playerAchievementsError } = await supabase
-          .from("player_achievements")
-          .select(
-            `
-            id,
-            progress,
-            completed,
-            completed_at,
-            achievements!inner (
+            // Get player achievement progress
+            supabase
+              .from("player_achievements")
+              .select(
+                `
               id,
-              name,
-              description,
-              tier,
-              icon,
-              xp_reward,
-              karma_chips_reward,
-              requirement_type,
-              requirement_value
-            )
-          `
-          )
-          .eq("player_id", playerData.id);
+              progress,
+              completed,
+              completed_at,
+              achievements!inner (
+                id,
+                name,
+                description,
+                tier,
+                icon,
+                xp_reward,
+                karma_chips_reward,
+                requirement_type,
+                requirement_value
+              )
+            `,
+              )
+              .eq("player_id", playerData.id),
 
-        if (playerAchievementsError) {
-          throw playerAchievementsError;
+            // Get recent XP transactions
+            supabase
+              .from("xp_transactions")
+              .select("*")
+              .eq("player_id", playerData.id)
+              .order("created_at", { ascending: false })
+              .limit(10),
+          ]);
+
+        // Process achievements result
+        if (
+          achievementsResult.status === "fulfilled" &&
+          !achievementsResult.value.error
+        ) {
+          setAchievements(achievementsResult.value.data || []);
         }
 
-        setPlayerAchievements(
-          playerAchievementsData?.map((pa) => ({
-            id: pa.id,
-            achievement: pa.achievements as unknown as Achievement,
-            progress: pa.progress,
-            completed: pa.completed,
-            completed_at: pa.completed_at,
-          })) || []
-        );
-
-        // Get recent XP transactions
-        const { data: xpData, error: xpError } = await supabase
-          .from("xp_transactions")
-          .select("*")
-          .eq("player_id", playerData.id)
-          .order("created_at", { ascending: false })
-          .limit(10);
-
-        if (xpError) {
-          throw xpError;
+        // Process player achievements result
+        if (
+          playerAchievementsResult.status === "fulfilled" &&
+          !playerAchievementsResult.value.error
+        ) {
+          const playerAchievements =
+            playerAchievementsResult.value.data?.map((pa) => ({
+              id: pa.id,
+              achievement: pa.achievements[0], // Take the first achievement from the join
+              progress: pa.progress,
+              completed: pa.completed,
+              completed_at: pa.completed_at,
+            })) || [];
+          setPlayerAchievements(playerAchievements);
         }
 
-        setRecentXP(xpData || []);
+        // Process recent XP result
+        if (
+          recentXPResult.status === "fulfilled" &&
+          !recentXPResult.value.error
+        ) {
+          setRecentXP(recentXPResult.value.data || []);
+        }
       }
+
+      setError(null);
     } catch (err) {
       console.error("Error fetching progression:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch progression data");
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
+      loadingStates.current.progression = false;
     }
   }, [redditUsername]);
 
-  const awardXP = async (amount: number, reason: string, metadata?: Record<string, unknown>) => {
+  const awardXP = async (
+    amount: number,
+    reason: string,
+    metadata?: Record<string, unknown>,
+  ) => {
     if (!redditUsername) return;
 
     try {
       console.log(`Awarding ${amount} XP to ${redditUsername} for: ${reason}`);
-      
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/award-xp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/award-xp`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            reddit_username: redditUsername,
+            xp_amount: amount,
+            reason,
+            metadata,
+          }),
         },
-        body: JSON.stringify({
-          reddit_username: redditUsername,
-          xp_amount: amount,
-          reason,
-          metadata,
-        }),
-      });
+      );
 
       console.log(`XP award response status: ${response.status}`);
-      
+
       const result = await response.json();
       console.log("XP award result:", result);
 
@@ -205,8 +240,10 @@ export function useProgression(redditUsername: string | null) {
       }
 
       if (result.success) {
-        console.log(`Successfully awarded ${amount} XP. New total: ${result.new_xp}, Level: ${result.new_level}`);
-        
+        console.log(
+          `Successfully awarded ${amount} XP. New total: ${result.new_xp}, Level: ${result.new_level}`,
+        );
+
         // Force refresh progression data to show updated values immediately
         await fetchProgression();
       }
@@ -224,16 +261,19 @@ export function useProgression(redditUsername: string | null) {
     if (!redditUsername) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-achievements`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-achievements`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            reddit_username: redditUsername,
+          }),
         },
-        body: JSON.stringify({
-          reddit_username: redditUsername,
-        }),
-      });
+      );
 
       const result = await response.json();
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { useProgression } from "../hooks/useProgression";
@@ -26,116 +26,205 @@ export default function Archaeology() {
   const { player, redditUser } = useAuth();
   const { awardXP } = useProgression(redditUser?.name || null);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [submissions, setSubmissions] = useState<Record<string, Submission | null>>({});
-  const [leaderboards, setLeaderboards] = useState<Record<string, Submission[]>>({});
+  const [submissions, setSubmissions] = useState<
+    Record<string, Submission | null>
+  >({});
+  const [leaderboards, setLeaderboards] = useState<
+    Record<string, Submission[]>
+  >({});
   const [inputUrls, setInputUrls] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Record<string, string>>({});
   const [fetchingNewPosts, setFetchingNewPosts] = useState(false);
 
-  useEffect(() => {
-    const fetchChallenges = async () => {
-      const { data } = await supabase.from("archaeology_challenges").select("*").eq("is_active", true);
-      setChallenges(data || []);
-      if (data) {
-        data.forEach((c: Challenge) => {
-          fetchLeaderboard(c.id);
-          fetchPersonalBest(c.id);
-        });
-      }
-    };
+  // Prevent duplicate API calls
+  const loadingStates = useRef({
+    fetchingChallenges: false,
+    fetchingSubmissions: false,
+    fetchingLeaderboards: false,
+    submittingChallenge: false,
+  });
 
-    fetchChallenges();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Memoize playerId to prevent unnecessary useEffect triggers
+  const playerId = useMemo(() => player?.id, [player?.id]);
+
+  const fetchLeaderboard = useCallback(async (challengeId: string) => {
+    if (loadingStates.current.fetchingLeaderboards) return;
+
+    try {
+      const { data } = await supabase
+        .from("archaeology_submissions")
+        .select("player_id, chain_length, submitted_at")
+        .eq("challenge_id", challengeId)
+        .order("chain_length", { ascending: false })
+        .limit(10);
+      setLeaderboards((prev) => ({ ...prev, [challengeId]: data || [] }));
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
+    }
   }, []);
 
-  async function fetchLeaderboard(challengeId: string) {
-    const { data } = await supabase
-      .from("archaeology_submissions")
-      .select("player_id, chain_length, submitted_at")
-      .eq("challenge_id", challengeId)
-      .order("chain_length", { ascending: false })
-      .limit(10);
-    setLeaderboards((prev) => ({ ...prev, [challengeId]: data || [] }));
-  }
+  const fetchPersonalBest = useCallback(
+    async (challengeId: string) => {
+      if (!playerId || loadingStates.current.fetchingSubmissions) return;
 
-  async function fetchPersonalBest(challengeId: string) {
-    if (!player) return;
-    const { data } = await supabase
-      .from("archaeology_submissions")
-      .select("player_id, chain_length, submitted_at")
-      .eq("challenge_id", challengeId)
-      .eq("player_id", player.id)
-      .single();
-    setSubmissions((prev) => ({ ...prev, [challengeId]: data || null }));
-  }
+      try {
+        const { data } = await supabase
+          .from("archaeology_submissions")
+          .select("player_id, chain_length, submitted_at")
+          .eq("challenge_id", challengeId)
+          .eq("player_id", playerId)
+          .single();
+        setSubmissions((prev) => ({ ...prev, [challengeId]: data || null }));
+      } catch (error) {
+        console.error("Error fetching personal best:", error);
+      }
+    },
+    [playerId],
+  );
 
-  async function handleSubmit(challengeId: string) {
-    if (!player || !redditUser) return;
-
-    setStatus((prev) => ({ ...prev, [challengeId]: "Verifying..." }));
-    const comment_url = inputUrls[challengeId];
+  const fetchChallenges = useCallback(async () => {
+    if (loadingStates.current.fetchingChallenges) {
+      console.log("Already fetching challenges, skipping...");
+      return;
+    }
 
     try {
-      const { data, error } = await supabase.functions.invoke("verify-comment-chain", {
-        body: {
-          player_id: player.id,
-          challenge_id: challengeId,
-          comment_url,
-        },
-      });
+      loadingStates.current.fetchingChallenges = true;
 
-      if (error) {
-        setStatus((prev) => ({ ...prev, [challengeId]: `Error: ${error.message}` }));
-      } else {
-        setStatus((prev) => ({
-          ...prev,
-          [challengeId]: `Success! Chain length: ${data.chain_length}, Prize: ${data.prize} Karma Chips (+${Math.floor(
-            data.chain_length / 2
-          )} XP)`,
-        }));
-        fetchLeaderboard(challengeId);
-        fetchPersonalBest(challengeId);
+      const { data } = await supabase
+        .from("archaeology_challenges")
+        .select("*")
+        .eq("is_active", true);
+      setChallenges(data || []);
 
-        // Award XP based on chain length found
-        if (redditUser?.name) {
-          try {
-            const xpAmount = Math.max(5, Math.floor(data.chain_length / 2)); // Minimum 5 XP, bonus for longer chains
-            await awardXP(xpAmount, "Discovered comment chain in Archaeology", {
-              challengeId,
-              chainLength: data.chain_length,
-              prize: data.prize,
-              commentUrl: comment_url,
-              timestamp: new Date().toISOString(),
-            });
-          } catch (xpError) {
-            console.error("Failed to award XP for archaeology submission:", xpError);
+      if (data) {
+        // Fetch leaderboards and personal bests in parallel
+        const fetchPromises = data.map((c: Challenge) =>
+          Promise.allSettled([fetchLeaderboard(c.id), fetchPersonalBest(c.id)]),
+        );
+        await Promise.allSettled(fetchPromises);
+      }
+    } catch (error) {
+      console.error("Error fetching challenges:", error);
+    } finally {
+      loadingStates.current.fetchingChallenges = false;
+    }
+  }, [fetchLeaderboard, fetchPersonalBest]);
+
+  useEffect(() => {
+    fetchChallenges();
+  }, [fetchChallenges]);
+
+  const handleSubmit = useCallback(
+    async (challengeId: string) => {
+      if (!player || !redditUser) return;
+
+      if (loadingStates.current.submittingChallenge) {
+        console.log("Already submitting a challenge, skipping...");
+        return;
+      }
+
+      try {
+        loadingStates.current.submittingChallenge = true;
+        setStatus((prev) => ({ ...prev, [challengeId]: "Verifying..." }));
+
+        const comment_url = inputUrls[challengeId];
+
+        const { data, error } = await supabase.functions.invoke(
+          "verify-comment-chain",
+          {
+            body: {
+              player_id: player.id,
+              challenge_id: challengeId,
+              comment_url,
+            },
+          },
+        );
+
+        if (error) {
+          setStatus((prev) => ({
+            ...prev,
+            [challengeId]: `Error: ${error.message}`,
+          }));
+        } else {
+          setStatus((prev) => ({
+            ...prev,
+            [challengeId]: `Success! Chain length: ${
+              data.chain_length
+            }, Prize: ${data.prize} Karma Chips (+${Math.floor(
+              data.chain_length / 2,
+            )} XP)`,
+          }));
+
+          // Refresh leaderboard and personal best in parallel
+          await Promise.allSettled([
+            fetchLeaderboard(challengeId),
+            fetchPersonalBest(challengeId),
+          ]);
+
+          // Award XP based on chain length found
+          if (redditUser?.name) {
+            try {
+              const xpAmount = Math.max(5, Math.floor(data.chain_length / 2)); // Minimum 5 XP, bonus for longer chains
+              await awardXP(
+                xpAmount,
+                "Discovered comment chain in Archaeology",
+                {
+                  challengeId,
+                  chainLength: data.chain_length,
+                  prize: data.prize,
+                  commentUrl: comment_url,
+                  timestamp: new Date().toISOString(),
+                },
+              );
+            } catch (xpError) {
+              console.error(
+                "Failed to award XP for archaeology submission:",
+                xpError,
+              );
+            }
           }
         }
+      } catch {
+        setStatus((prev) => ({
+          ...prev,
+          [challengeId]: `Error: Failed to connect to server`,
+        }));
+      } finally {
+        loadingStates.current.submittingChallenge = false;
       }
-    } catch {
-      setStatus((prev) => ({ ...prev, [challengeId]: `Error: Failed to connect to server` }));
-    }
-  }
+    },
+    [
+      player,
+      redditUser,
+      inputUrls,
+      fetchLeaderboard,
+      fetchPersonalBest,
+      awardXP,
+    ],
+  );
 
   // Fetch new high-engagement posts for archaeology
-  const fetchNewArchaeologyPosts = async () => {
+  const fetchNewArchaeologyPosts = useCallback(async () => {
+    if (fetchingNewPosts) {
+      console.log("Already fetching new posts, skipping...");
+      return;
+    }
+
     setFetchingNewPosts(true);
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-archaeology-posts");
+      const { data, error } = await supabase.functions.invoke(
+        "fetch-archaeology-posts",
+      );
 
       if (error) throw error;
 
       if (data?.success) {
-        toast.success(`Found ${data.posts_with_100_plus_comments} new high-engagement posts!`);
+        toast.success(
+          `Found ${data.posts_with_100_plus_comments} new high-engagement posts!`,
+        );
         // Refresh challenges after fetching new posts
-        const { data: newChallenges } = await supabase.from("archaeology_challenges").select("*").eq("is_active", true);
-        setChallenges(newChallenges || []);
-        if (newChallenges) {
-          newChallenges.forEach((c: Challenge) => {
-            fetchLeaderboard(c.id);
-            fetchPersonalBest(c.id);
-          });
-        }
+        await fetchChallenges();
       } else {
         throw new Error(data?.error || "Failed to fetch new posts");
       }
@@ -145,14 +234,16 @@ export default function Archaeology() {
     } finally {
       setFetchingNewPosts(false);
     }
-  };
+  }, [fetchingNewPosts, fetchChallenges]);
 
   if (!player || !redditUser) {
     return (
       <div className="p-3 sm:p-4 max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold mb-4">🦴 Archaeology Dig Sites</h1>
         <div className="text-center py-8">
-          <p className="text-lg text-muted-foreground">Please log in to participate in archaeological expeditions.</p>
+          <p className="text-lg text-muted-foreground">
+            Please log in to participate in archaeological expeditions.
+          </p>
         </div>
       </div>
     );
@@ -167,35 +258,52 @@ export default function Archaeology() {
           disabled={fetchingNewPosts}
           className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <RefreshCw className={`h-4 w-4 ${fetchingNewPosts ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-4 w-4 ${fetchingNewPosts ? "animate-spin" : ""}`}
+          />
           {fetchingNewPosts ? "Finding Posts..." : "Find New Posts"}
         </button>
       </div>
       <p className="text-muted-foreground mb-6">
-        Discover the longest comment chains in Reddit threads! Find the deepest reply chain and earn Karma Chips.
+        Discover the longest comment chains in Reddit threads! Find the deepest
+        reply chain and earn Karma Chips.
       </p>
 
       {challenges.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-lg text-muted-foreground">No active dig sites available. Check back later!</p>
+          <p className="text-lg text-muted-foreground">
+            No active dig sites available. Check back later!
+          </p>
         </div>
       ) : (
         challenges.map((c) => (
-          <div key={c.id} className="border rounded-lg p-4 sm:p-6 mb-6 bg-card shadow-sm">
+          <div
+            key={c.id}
+            className="border rounded-lg p-4 sm:p-6 mb-6 bg-card shadow-sm"
+          >
             <div className="mb-4">
               <h3 className="font-semibold text-lg">{c.thread_title}</h3>
               <div className="flex items-center gap-4 text-muted-foreground text-sm">
                 <span className="font-medium">r/{c.subreddit}</span>
                 {c.comment_count && (
-                  <span className="flex items-center gap-1">💬 {c.comment_count.toLocaleString()} comments</span>
+                  <span className="flex items-center gap-1">
+                    💬 {c.comment_count.toLocaleString()} comments
+                  </span>
                 )}
-                {c.score && <span className="flex items-center gap-1">⬆️ {c.score.toLocaleString()} upvotes</span>}
+                {c.score && (
+                  <span className="flex items-center gap-1">
+                    ⬆️ {c.score.toLocaleString()} upvotes
+                  </span>
+                )}
                 {c.author && <span>by u/{c.author}</span>}
               </div>
             </div>
 
             <a
-              href={c.thread_url || `https://reddit.com/comments/${c.reddit_thread_id}`}
+              href={
+                c.thread_url ||
+                `https://reddit.com/comments/${c.reddit_thread_id}`
+              }
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline text-sm mb-4 inline-block"
@@ -210,9 +318,14 @@ export default function Archaeology() {
                   placeholder="Paste Reddit comment URL here..."
                   className="border border-border px-3 py-2 flex-1 rounded-md bg-background"
                   value={inputUrls[c.id] || ""}
-                  onChange={(e) => setInputUrls((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                  onChange={(e) =>
+                    setInputUrls((prev) => ({
+                      ...prev,
+                      [c.id]: e.target.value,
+                    }))
+                  }
                 />
-                <button 
+                <button
                   className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => handleSubmit(c.id)}
                   disabled={!inputUrls[c.id] || !inputUrls[c.id].trim()}
@@ -240,15 +353,22 @@ export default function Archaeology() {
               <div>
                 <h4 className="font-semibold mb-2">🏆 Leaderboard</h4>
                 {(leaderboards[c.id] || []).length === 0 ? (
-                  <p className="text-muted-foreground text-sm">No submissions yet</p>
+                  <p className="text-muted-foreground text-sm">
+                    No submissions yet
+                  </p>
                 ) : (
                   <ol className="space-y-1">
                     {(leaderboards[c.id] || []).map((s, i) => (
-                      <li key={s.player_id + i} className="text-sm flex justify-between">
+                      <li
+                        key={s.player_id + i}
+                        className="text-sm flex justify-between"
+                      >
                         <span>
                           #{i + 1} Player {s.player_id.slice(0, 8)}...
                         </span>
-                        <span className="font-medium">{s.chain_length} links</span>
+                        <span className="font-medium">
+                          {s.chain_length} links
+                        </span>
                       </li>
                     ))}
                   </ol>
@@ -259,7 +379,9 @@ export default function Archaeology() {
                 <h4 className="font-semibold mb-2">📊 Your Best</h4>
                 <div className="text-sm">
                   {submissions[c.id]?.chain_length ? (
-                    <p className="text-primary font-medium">{submissions[c.id]?.chain_length} links deep</p>
+                    <p className="text-primary font-medium">
+                      {submissions[c.id]?.chain_length} links deep
+                    </p>
                   ) : (
                     <p className="text-muted-foreground">No submission yet</p>
                   )}

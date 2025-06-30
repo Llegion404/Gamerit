@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase, Player } from "../lib/supabase";
 import { redditAuth, RedditUser } from "../lib/reddit-auth";
 import toast from "react-hot-toast";
@@ -8,6 +8,9 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
   const [redditUser, setRedditUser] = useState<RedditUser | null>(null);
   const [isProcessingCallback, setIsProcessingCallback] = useState(false);
+
+  // Prevent duplicate player fetches
+  const isRefreshingPlayer = useRef(false);
 
   const login = async () => {
     try {
@@ -58,7 +61,7 @@ export function useAuth() {
         setIsProcessingCallback(false);
       }
     },
-    [isProcessingCallback]
+    [isProcessingCallback],
   );
 
   const logout = () => {
@@ -67,18 +70,25 @@ export function useAuth() {
     setRedditUser(null);
   };
 
-  const refreshPlayer = async () => {
-    if (!redditUser) return;
+  const refreshPlayer = useCallback(async () => {
+    if (!redditUser || isRefreshingPlayer.current) return;
 
     try {
-      const { data, error } = await supabase.from("players").select("*").eq("reddit_id", redditUser.id).single();
+      isRefreshingPlayer.current = true;
+      const { data, error } = await supabase
+        .from("players")
+        .select("*")
+        .eq("reddit_id", redditUser.id)
+        .single();
 
       if (error) throw error;
       setPlayer(data);
     } catch (error) {
       console.error("Failed to refresh player:", error);
+    } finally {
+      isRefreshingPlayer.current = false;
     }
-  };
+  }, [redditUser]);
 
   const claimWelfareChips = async () => {
     if (!redditUser) return;
@@ -125,7 +135,11 @@ export function useAuth() {
           setRedditUser(user);
 
           try {
-            const { data, error } = await supabase.from("players").select("*").eq("reddit_id", user.id).single();
+            const { data, error } = await supabase
+              .from("players")
+              .select("*")
+              .eq("reddit_id", user.id)
+              .single();
 
             if (!error && data) {
               setPlayer(data);

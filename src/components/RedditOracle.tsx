@@ -1,5 +1,12 @@
-import { useState, useEffect } from "react";
-import { Italic as Crystal, Sparkles, RefreshCw, MessageCircle, Zap, Eye } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import {
+  Italic as Crystal,
+  Sparkles,
+  RefreshCw,
+  MessageCircle,
+  Zap,
+  Eye,
+} from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { useProgression } from "../hooks/useProgression";
@@ -29,11 +36,25 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
   const { player, redditUser } = useAuth();
   const { awardXP } = useProgression(redditUser?.name || null);
   const [question, setQuestion] = useState("");
-  const [currentResponse, setCurrentResponse] = useState<OracleResponse | null>(null);
+  const [currentResponse, setCurrentResponse] = useState<OracleResponse | null>(
+    null,
+  );
   const [recentResponses, setRecentResponses] = useState<OracleResponse[]>([]);
   const [isConsulting, setIsConsulting] = useState(false);
   const [oracleStats, setOracleStats] = useState<OracleStats | null>(null);
-  const [animationPhase, setAnimationPhase] = useState<"idle" | "consulting" | "revealing">("idle");
+  const [animationPhase, setAnimationPhase] = useState<
+    "idle" | "consulting" | "revealing"
+  >("idle");
+
+  // Prevent duplicate API calls
+  const loadingStates = useRef({
+    consultingOracle: false,
+    loadingData: false,
+  });
+
+  // Oracle animation states
+  const [crystalGlow, setCrystalGlow] = useState(false);
+  const [mysticalText, setMysticalText] = useState("");
 
   // Track consulting state and notify parent
   useEffect(() => {
@@ -48,10 +69,6 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
     setMysticalText("");
   }, []);
 
-  // Oracle animation states
-  const [crystalGlow, setCrystalGlow] = useState(false);
-  const [mysticalText, setMysticalText] = useState("");
-
   const mysticalPhrases = [
     "The cosmic threads are aligning...",
     "Consulting the digital spirits...",
@@ -64,8 +81,14 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
   ];
 
   useEffect(() => {
-    loadRecentResponses();
-    loadOracleStats();
+    if (loadingStates.current.loadingData) return;
+
+    loadingStates.current.loadingData = true;
+    Promise.allSettled([loadRecentResponses(), loadOracleStats()]).finally(
+      () => {
+        loadingStates.current.loadingData = false;
+      },
+    );
   }, []);
 
   const loadRecentResponses = async () => {
@@ -94,7 +117,10 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
     const stored = localStorage.getItem("oracle_responses");
     const responses = stored ? JSON.parse(stored) : [];
     responses.unshift(response);
-    localStorage.setItem("oracle_responses", JSON.stringify(responses.slice(0, 20)));
+    localStorage.setItem(
+      "oracle_responses",
+      JSON.stringify(responses.slice(0, 20)),
+    );
     setRecentResponses(responses.slice(0, 5));
 
     // Update stats
@@ -116,26 +142,32 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
     }
 
     // Prevent multiple simultaneous consultations
-    if (isConsulting) {
+    if (isConsulting || loadingStates.current.consultingOracle) {
+      console.log("Oracle already consulting, skipping...");
       return;
     }
 
-    setIsConsulting(true);
-    setAnimationPhase("consulting");
-    setCrystalGlow(true);
-
-    // Show mystical loading text
-    const randomPhrase = mysticalPhrases[Math.floor(Math.random() * mysticalPhrases.length)];
-    setMysticalText(randomPhrase);
-
     try {
+      loadingStates.current.consultingOracle = true;
+      setIsConsulting(true);
+      setAnimationPhase("consulting");
+      setCrystalGlow(true);
+
+      // Show mystical loading text
+      const randomPhrase =
+        mysticalPhrases[Math.floor(Math.random() * mysticalPhrases.length)];
+      setMysticalText(randomPhrase);
+
       // Call the oracle function to get a random comment
-      const { data, error } = await supabase.functions.invoke("consult-reddit-oracle", {
-        body: {
-          question: question.trim(),
-          player_id: player?.id,
+      const { data, error } = await supabase.functions.invoke(
+        "consult-reddit-oracle",
+        {
+          body: {
+            question: question.trim(),
+            player_id: player?.id,
+          },
         },
-      });
+      );
 
       if (error) throw error;
 
@@ -164,6 +196,7 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
           setCrystalGlow(false);
           setMysticalText("");
           setIsConsulting(false);
+          loadingStates.current.consultingOracle = false;
 
           // Award XP for consulting the oracle
           if (redditUser?.name) {
@@ -196,12 +229,7 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
       setCrystalGlow(false);
       setMysticalText("");
       setIsConsulting(false);
-    } finally {
-      // Ensure consulting state is always reset
-      setTimeout(() => {
-        setIsConsulting(false);
-        onConsultingStateChange?.(false);
-      }, 100);
+      loadingStates.current.consultingOracle = false;
     }
   };
 
@@ -227,16 +255,19 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
             <div className="w-32 h-32 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
           </div>
           <div className="relative">
-            <Crystal className={`w-16 h-16 mx-auto text-purple-500 mb-4 transition-all duration-1000 ${
-              crystalGlow ? "animate-pulse scale-110 drop-shadow-lg" : ""
-            }`} />
+            <Crystal
+              className={`w-16 h-16 mx-auto text-purple-500 mb-4 transition-all duration-1000 ${
+                crystalGlow ? "animate-pulse scale-110 drop-shadow-lg" : ""
+              }`}
+            />
             <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
               The Reddit Oracle
             </h1>
           </div>
         </div>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Ask any question and receive mystical wisdom from the depths of Reddit's collective consciousness
+          Ask any question and receive mystical wisdom from the depths of
+          Reddit's collective consciousness
         </p>
         {oracleStats && (
           <div className="flex items-center justify-center space-x-6 text-sm text-muted-foreground">
@@ -316,7 +347,7 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
                   Your question: "{currentResponse.question}"
                 </div>
               </div>
-              
+
               <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-purple-200 dark:border-purple-700">
                 <blockquote className="text-lg italic text-center leading-relaxed mb-4">
                   "{currentResponse.answer}"
@@ -324,20 +355,33 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
                 <div className="text-center text-sm text-muted-foreground flex flex-col items-center gap-1">
                   <div className="flex items-center justify-center space-x-2">
                     <MessageCircle className="w-4 h-4" />
-                    <span>Wisdom from r/{currentResponse.source_subreddit}</span>
+                    <span>
+                      Wisdom from r/{currentResponse.source_subreddit}
+                    </span>
                     <span>•</span>
                     <span>by u/{currentResponse.source_author}</span>
                   </div>
                   {currentResponse.source_permalink && (
-                    <a 
+                    <a
                       href={`https://reddit.com${currentResponse.source_permalink}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-purple-500 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1 mt-1"
                     >
                       <span>View original comment</span>
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                        />
                       </svg>
                     </a>
                   )}
@@ -373,7 +417,8 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
                   A: "{response.answer}"
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Source: r/{response.source_subreddit} • u/{response.source_author}
+                  Source: r/{response.source_subreddit} • u/
+                  {response.source_author}
                 </div>
               </div>
             ))}
@@ -389,19 +434,35 @@ export function RedditOracle({ onConsultingStateChange }: RedditOracleProps) {
         </h3>
         <div className="space-y-3 text-sm text-muted-foreground">
           <p>• Ask any question that weighs on your mind or heart</p>
-          <p>• The Oracle searches through random Reddit comments from various subreddits</p>
-          <p>• Receive an out-of-context comment that may surprisingly fit your situation</p>
-          <p>• The humor comes from the absurd yet sometimes profound connections</p>
-          <p>• Each consultation grants you 3 XP and increases your Wisdom Level</p>
-          <p>• The Oracle draws from subreddits like r/gardening, r/cooking, r/showerthoughts, and more</p>
+          <p>
+            • The Oracle searches through random Reddit comments from various
+            subreddits
+          </p>
+          <p>
+            • Receive an out-of-context comment that may surprisingly fit your
+            situation
+          </p>
+          <p>
+            • The humor comes from the absurd yet sometimes profound connections
+          </p>
+          <p>
+            • Each consultation grants you 3 XP and increases your Wisdom Level
+          </p>
+          <p>
+            • The Oracle draws from subreddits like r/gardening, r/cooking,
+            r/showerthoughts, and more
+          </p>
         </div>
       </div>
 
       {!player && (
         <div className="bg-card rounded-xl border border-border shadow-lg p-4 sm:p-6 text-center">
-          <h3 className="text-lg font-semibold mb-2">Unlock the Oracle's Full Power</h3>
+          <h3 className="text-lg font-semibold mb-2">
+            Unlock the Oracle's Full Power
+          </h3>
           <p className="text-muted-foreground mb-4">
-            Login to track your consultations, earn XP, and build your Wisdom Level
+            Login to track your consultations, earn XP, and build your Wisdom
+            Level
           </p>
         </div>
       )}

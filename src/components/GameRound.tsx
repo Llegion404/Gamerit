@@ -83,7 +83,8 @@ export function GameRound({ round, player, redditUser, onPlaceBet, getUserBets, 
     };
 
     checkExistingBet();
-  }, [player, round, getUserBets, isInitialLoad]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player, round, getUserBets]);
 
   const PostCard = ({
     post,

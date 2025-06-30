@@ -72,7 +72,9 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold">Battle Mode</h2>
-            <p className="text-sm text-muted-foreground">Choose your preferred betting style</p>
+            <p className="text-sm text-muted-foreground">
+              Choose your preferred betting style
+            </p>
           </div>
           <div className="flex bg-secondary rounded-lg p-1">
             <button
@@ -100,19 +102,21 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
       </div>
 
       {battleMode === "hot-potato" ? (
-        <HotPotatoBetting 
-          player={player} 
-          redditUser={redditUser} 
+        <HotPotatoBetting
+          player={player}
+          redditUser={redditUser}
           onRefreshPlayer={() => {
             // Refresh player data - you might need to pass this from parent
             refreshData();
-          }} 
+          }}
         />
       ) : (
         <>
           {/* Battle Overview */}
           <div className="bg-card border border-border rounded-lg p-3 sm:p-4">
-            <h2 className="text-xl font-semibold mb-4 text-center">Battles Overview</h2>
+            <h2 className="text-xl font-semibold mb-4 text-center">
+              Battles Overview
+            </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-xs">
               {rounds.slice(0, 10).map((round, index) => {
                 const timeLeft = formatRoundTime(round.created_at);
@@ -130,7 +134,9 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
                     <div className="truncate">{round.post_a_subreddit}</div>
                     <div className="text-[10px] opacity-75">vs</div>
                     <div className="truncate">{round.post_b_subreddit}</div>
-                    <div className="text-[10px] opacity-75 mt-1">{timeLeft}</div>
+                    <div className="text-[10px] opacity-75 mt-1">
+                      {timeLeft}
+                    </div>
                   </div>
                 );
               })}
@@ -149,12 +155,6 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
             />
           </div>
         </>
-      )}
-      {/* Previous Rounds section - only show in classic mode */}
-      {battleMode === "classic" && (
-        <div className="mt-8 sm:mt-12">
-          <PreviousRounds rounds={rounds.filter(round => round.status !== 'active')} />
-        </div>
       )}
     </div>
   );
