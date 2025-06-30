@@ -281,7 +281,7 @@ function App() {
           <p className="text-xs sm:text-sm text-muted-foreground mt-2">
             🎯 Battle • 📈 Trade • 🦴 Explore • 🏆 Compete • ⭐ Progress
           </p>
-          <div className="mt-3 sm:mt-4 text-muted-foreground text-xs space-y-1">
+          <div className="mt-3 sm:mt-4 text-muted-foreground text-xs space-y-1 mb-4">
             <p>• Reddit Battles: Bet on post performance and win big</p>
             <p>• Meme Market: Trade trending keywords like stocks</p>
             <p>• Archaeology: Discover the deepest comment chains</p>
@@ -302,6 +302,16 @@ function App() {
               • Start with 1,000 free Karma Chips • Claim 50 welfare chips daily
               when broke
             </p>
+            <div className="mt-4 flex justify-center">
+              <a 
+                href="https://bolt.new" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="inline-flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                <span>Built with Bolt.new</span>
+              </a>
+            </div>
           </div>
         </div>
       </footer>
