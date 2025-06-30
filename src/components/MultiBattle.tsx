@@ -145,9 +145,11 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
           onPlaceBet={onPlaceBet}
           getUserBets={getUserBets}
           refreshData={refreshData}
-        />
-      </div>
-        </>
+      {/* Previous Rounds section - only show in classic mode */}
+      {battleMode === "classic" && (
+        <div className="mt-8 sm:mt-12">
+          <PreviousRounds rounds={previousRounds} />
+        </div>
       )}
     </div>
   );
