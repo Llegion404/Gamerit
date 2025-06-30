@@ -98,7 +98,7 @@ export function ComingSoon() {
           <div className="w-full bg-muted rounded-full h-2">
             <div
               className="bg-gradient-to-r from-primary to-orange-500 h-2 rounded-full transition-all duration-1000 ease-out"
-              style={{ width: "85%" }}
+              style={{ width: "25%" }}
             ></div>
           </div>
           <p className="text-xs text-muted-foreground mt-2">Market manipulation tools nearly ready for chaos</p>
