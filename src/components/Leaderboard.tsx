@@ -265,18 +265,13 @@ export function Leaderboard({ players, gameMode = "reddit-battles" }: Leaderboar
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm sm:text-base truncate">u/{entry.reddit_username}</p>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                      <p className="text-primary text-xs sm:text-sm font-medium flex items-center gap-1">
+                      <p className="text-primary text-xs sm:text-sm font-medium">
                         <span>{entry.highest_bet_amount.toLocaleString()}</span>
-                        <span className="text-xs text-muted-foreground">highest bet</span>
                       </p>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <span>{entry.total_bets} bets</span>
-                        <span className="hidden sm:inline">•</span>
                         <span className={entry.win_rate > 50 ? "text-green-500" : "text-red-500"}>
                           {entry.win_rate}% win rate
                         </span>
-                        <span className="hidden sm:inline">•</span>
-                        <span className="hidden sm:inline">{entry.total_winnings?.toLocaleString() || 0} won</span>
                       </div>
                     </div>
                   </div>
