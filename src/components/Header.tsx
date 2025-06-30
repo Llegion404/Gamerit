@@ -25,6 +25,7 @@ const games = [
   { id: "reddit-oracle", name: "Reddit Oracle", icon: Crystal, active: true },
   { id: "reddit-radio", name: "Reddit Radio", icon: SquareDashedBottomCode, active: true },
   { id: "typing-test", name: "Typing Test", icon: Keyboard, active: true },
+  { id: "typing-test", name: "Typing Test", icon: Keyboard, active: true },
   { id: "progression", name: "Progression", icon: Trophy, active: true },
   { id: "coming-soon", name: "Coming soon", icon: SquareDashedBottomCode, active: false },
 ];

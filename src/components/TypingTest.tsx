@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Keyboard, RefreshCw, Clock, Trophy, Smile, Check, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
@@ -28,59 +28,46 @@ export default function TypingTest() {
   const [errors, setErrors] = useState(0);
   const [personalBest, setPersonalBest] = useState<number | null>(null);
   const [recentScores, setRecentScores] = useState<{wpm: number, date: string}[]>([]);
+  const [fetchingJokes, setFetchingJokes] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Fetch dad jokes from Reddit
-  useEffect(() => {
-    const fetchJokes = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase.functions.invoke("fetch-dad-jokes");
-        
-        if (error) throw error;
-        
-        if (data?.jokes && data.jokes.length > 0) {
-          setJokes(data.jokes);
-          setCurrentJoke(data.jokes[0]);
-        } else {
-          // Fallback jokes in case API fails
-          const fallbackJokes = [
-            { id: "1", joke: "I'm reading a book on anti-gravity. It's impossible to put down!", score: 42, author: "dadjokester", subreddit: "dadjokes" },
-            { id: "2", joke: "Did you hear about the restaurant on the moon? Great food, no atmosphere.", score: 37, author: "spacedad", subreddit: "dadjokes" },
-            { id: "3", joke: "What do you call a fake noodle? An impasta.", score: 56, author: "pastapun", subreddit: "dadjokes" },
-            { id: "4", joke: "How do you organize a space party? You planet.", score: 29, author: "galaxyjester", subreddit: "dadjokes" },
-            { id: "5", joke: "Why don't scientists trust atoms? Because they make up everything.", score: 88, author: "sciencedad", subreddit: "dadjokes" }
-          ];
-          setJokes(fallbackJokes);
-          setCurrentJoke(fallbackJokes[0]);
-        }
-      } catch (error) {
-        console.error("Error fetching dad jokes:", error);
-        toast.error("Failed to load dad jokes");
-        
-        // Use fallback jokes
-        const fallbackJokes = [
-          { id: "1", joke: "I'm reading a book on anti-gravity. It's impossible to put down!", score: 42, author: "dadjokester", subreddit: "dadjokes" },
-          { id: "2", joke: "Did you hear about the restaurant on the moon? Great food, no atmosphere.", score: 37, author: "spacedad", subreddit: "dadjokes" },
-          { id: "3", joke: "What do you call a fake noodle? An impasta.", score: 56, author: "pastapun", subreddit: "dadjokes" },
-          { id: "4", joke: "How do you organize a space party? You planet.", score: 29, author: "galaxyjester", subreddit: "dadjokes" },
-          { id: "5", joke: "Why don't scientists trust atoms? Because they make up everything.", score: 88, author: "sciencedad", subreddit: "dadjokes" }
-        ];
-        setJokes(fallbackJokes);
-        setCurrentJoke(fallbackJokes[0]);
-      } finally {
-        setIsLoading(false);
+  const fetchJokes = useCallback(async () => {
+    if (fetchingJokes) return;
+    
+    setIsLoading(true);
+    setFetchingJokes(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-dad-jokes");
+      
+      if (error) throw error;
+      
+      if (data?.jokes && data.jokes.length > 0) {
+        setJokes(data.jokes);
+        setCurrentJoke(data.jokes[0]);
+      } else {
+        throw new Error("No jokes returned from API");
       }
-    };
+    } catch (error) {
+      console.error("Error fetching dad jokes:", error);
+      toast.error("Failed to load dad jokes");
+    } finally {
+      setIsLoading(false);
+      setFetchingJokes(false);
+    }
+  }, [fetchingJokes]);
 
+  // Initial data load
+  useEffect(() => {
     fetchJokes();
     
     // Fetch personal best if logged in
     if (player && redditUser) {
       fetchPersonalBest();
     }
-  }, [player, redditUser]);
+  }, [player, redditUser, fetchJokes]);
 
   const fetchPersonalBest = async () => {
     if (!player) return;
@@ -167,7 +154,11 @@ export default function TypingTest() {
   };
 
   const getNextJoke = () => {
-    if (jokes.length <= 1) return;
+    if (jokes.length <= 1) {
+      // If we only have one joke or none, fetch more
+      fetchJokes();
+      return;
+    }
     
     const currentIndex = jokes.findIndex(joke => joke.id === currentJoke?.id);
     const nextIndex = (currentIndex + 1) % jokes.length;
