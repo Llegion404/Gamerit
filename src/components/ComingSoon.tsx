@@ -93,7 +93,7 @@ export function ComingSoon() {
         <div className="max-w-md mx-auto mt-8">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
             <span>Development Progress</span>
-            <span>85%</span>
+            <span>25%</span>
           </div>
           <div className="w-full bg-muted rounded-full h-2">
             <div
