@@ -109,42 +109,46 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
         />
       ) : (
         <>
-      {/* Battle Overview */}
-      <div className="bg-card border border-border rounded-lg p-3 sm:p-4">
-        <h2 className="text-xl font-semibold mb-4 text-center">Battles Overview</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-xs">
-          {rounds.slice(0, 10).map((round, index) => {
-            const timeLeft = formatRoundTime(round.created_at);
-            return (
-              <div
-                key={round.id}
-                className={`p-3 rounded border text-center cursor-pointer transition-colors ${
-                  activeTab === index
-                    ? "bg-primary/10 border-primary text-primary"
-                    : "bg-background border-border hover:border-primary/50"
-                }`}
-                onClick={() => handleTabChange(index)}
-              >
-                <div className="font-medium">#{index + 1}</div>
-                <div className="truncate">{round.post_a_subreddit}</div>
-                <div className="text-[10px] opacity-75">vs</div>
-                <div className="truncate">{round.post_b_subreddit}</div>
-                <div className="text-[10px] opacity-75 mt-1">{timeLeft}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+          {/* Battle Overview */}
+          <div className="bg-card border border-border rounded-lg p-3 sm:p-4">
+            <h2 className="text-xl font-semibold mb-4 text-center">Battles Overview</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-xs">
+              {rounds.slice(0, 10).map((round, index) => {
+                const timeLeft = formatRoundTime(round.created_at);
+                return (
+                  <div
+                    key={round.id}
+                    className={`p-3 rounded border text-center cursor-pointer transition-colors ${
+                      activeTab === index
+                        ? "bg-primary/10 border-primary text-primary"
+                        : "bg-background border-border hover:border-primary/50"
+                    }`}
+                    onClick={() => handleTabChange(index)}
+                  >
+                    <div className="font-medium">#{index + 1}</div>
+                    <div className="truncate">{round.post_a_subreddit}</div>
+                    <div className="text-[10px] opacity-75">vs</div>
+                    <div className="truncate">{round.post_b_subreddit}</div>
+                    <div className="text-[10px] opacity-75 mt-1">{timeLeft}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-      {/* Active Round Display */}
-      <div className="transition-all duration-300">
-        <GameRoundComponent
-          round={rounds[activeTab]}
-          player={player}
-          redditUser={redditUser}
-          onPlaceBet={onPlaceBet}
-          getUserBets={getUserBets}
-          refreshData={refreshData}
+          {/* Active Round Display */}
+          <div className="transition-all duration-300">
+            <GameRoundComponent
+              round={rounds[activeTab]}
+              player={player}
+              redditUser={redditUser}
+              onPlaceBet={onPlaceBet}
+              getUserBets={getUserBets}
+              refreshData={refreshData}
+            />
+          </div>
+        </>
+      )}
       {/* Previous Rounds section - only show in classic mode */}
       {battleMode === "classic" && (
         <div className="mt-8 sm:mt-12">
