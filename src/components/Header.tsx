@@ -1,8 +1,8 @@
-import { Trophy, User, LogOut, Gift, Sun, Moon, Menu, X, Target, TrendingUp, Search, SquareDashedBottomCode, Timer, Italic as Crystal, Crown } from "lucide-react";
+import { Trophy, User, LogOut, Gift, Sun, Moon, Menu, X, Target, TrendingUp, Search, SquareDashedBottomCode, Timer, Italic as Crystal, Crown, Keyboard } from "lucide-react";
 import { useState } from "react";
 import { Player } from "../lib/supabase";
 import { RedditUser } from "../lib/reddit-auth";
-import { useTheme } from "../hooks/useTheme"; 
+import { useTheme } from "../hooks/useTheme";
 import ProgressionSystem from "./ProgressionSystem";
 
 interface HeaderProps {
@@ -20,10 +20,11 @@ interface HeaderProps {
 const games = [
   { id: "reddit-battles", name: "Reddit Battles", icon: Target, active: true },
   { id: "meme-market", name: "Meme Terminal", icon: TrendingUp, active: true },
-  { id: "subreddit-reigns", name: "Subreddit Reigns", icon: Crown, active: true }, 
-  { id: "archaeology", name: "Archaeology", icon: Search, active: true }, 
-  { id: "reddit-oracle", name: "Reddit Oracle", icon: Crystal, active: true }, 
-  { id: "reddit-radio", name: "Reddit Radio", icon: SquareDashedBottomCode, active: true }, 
+  { id: "subreddit-reigns", name: "Subreddit Reigns", icon: Crown, active: true },
+  { id: "archaeology", name: "Archaeology", icon: Search, active: true },
+  { id: "reddit-oracle", name: "Reddit Oracle", icon: Crystal, active: true },
+  { id: "reddit-radio", name: "Reddit Radio", icon: SquareDashedBottomCode, active: true },
+  { id: "typing-test", name: "Typing Test", icon: Keyboard, active: true },
   { id: "progression", name: "Progression", icon: Trophy, active: true },
   { id: "coming-soon", name: "Coming soon", icon: SquareDashedBottomCode, active: false },
 ];
