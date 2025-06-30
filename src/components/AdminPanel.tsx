@@ -93,32 +93,6 @@ export function AdminPanel() {
         )}
       </div>
 
-      {/* Manual Refresh Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 sm:p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800 gap-2 sm:gap-0 mb-3 sm:mb-4">
-        <div className="flex-1">
-          <h3 className="font-medium text-green-700 dark:text-green-300 text-sm sm:text-base">Create New Battle</h3>
-          <p className="text-green-600 dark:text-green-400 text-xs sm:text-sm">
-            Manually create a new Reddit battle
-          </p>
-        </div>
-        <button
-          onClick={handleCreateRound}
-          disabled={isCreatingRound || (currentRounds && currentRounds.length >= 10)}
-          className="flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
-        >
-          {isCreatingRound ? (
-            <>
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              Creating...
-            </>
-          ) : (
-            <>
-              <Plus className="w-4 h-4" />
-              Create Battle
-            </>
-          )}
-        </button>
-      </div>
 
       {/* Refresh Button */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 sm:p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 gap-2 sm:gap-0">
