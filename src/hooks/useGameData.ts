@@ -99,6 +99,14 @@ export function useGameData() {
   const fetchCurrentRounds = useCallback(async () => {
     try {
       console.log("Fetching current rounds...");
+      
+      // Add connection test before making requests
+      const connectionTest = await supabase.from("game_rounds").select("count").limit(1);
+      if (connectionTest.error) {
+        console.error("Supabase connection test failed:", connectionTest.error);
+        throw new Error(`Database connection failed: ${connectionTest.error.message}`);
+      }
+      
       const { data, error } = await supabase
         .from("game_rounds")
         .select("*")
@@ -112,11 +120,22 @@ export function useGameData() {
         setLastRefreshTime(Date.now());
       } else {
         console.log("No active rounds found or error occurred:", error);
+        if (error) {
+          console.error("Database error details:", error);
+        }
         setCurrentRounds([]);
         setCurrentRound(null);
       }
     } catch (error) {
       console.error("Error fetching current rounds:", error);
+      // Provide more specific error information
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.error("Network connectivity issue detected. Please check:");
+        console.error("1. Internet connection");
+        console.error("2. Supabase project status");
+        console.error("3. CORS configuration in Supabase dashboard");
+        console.error("4. Environment variables are correct");
+      }
       setCurrentRounds([]);
       setCurrentRound(null);
     }
