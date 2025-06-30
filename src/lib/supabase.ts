@@ -5,12 +5,34 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Add error handling for missing environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables:', {
-    url: !!supabaseUrl,
-    key: !!supabaseAnonKey
-  })
-  throw new Error('Supabase configuration is incomplete. Please check your environment variables.')
+  const errorMessage = `Missing Supabase environment variables:
+    VITE_SUPABASE_URL: ${supabaseUrl ? '✓ Set' : '✗ Missing'}
+    VITE_SUPABASE_ANON_KEY: ${supabaseAnonKey ? '✓ Set' : '✗ Missing'}
+    
+    Please check your .env.local file and ensure these variables are set correctly.
+    You can find these values in your Supabase dashboard at:
+    https://supabase.com/dashboard/project/your-project/settings/api`;
+  
+  console.error(errorMessage);
+  throw new Error('Supabase configuration is incomplete. Please check your environment variables.');
 }
+
+// Validate URL format
+if (!supabaseUrl.startsWith('https://') || !supabaseUrl.includes('.supabase.co')) {
+  console.error('Invalid Supabase URL format. Expected format: https://your-project-ref.supabase.co');
+  throw new Error('Invalid Supabase URL format');
+}
+
+// Validate anon key format (basic check)
+if (supabaseAnonKey.length < 100) {
+  console.error('Supabase anon key appears to be invalid (too short)');
+  throw new Error('Invalid Supabase anon key');
+}
+
+console.log('Supabase configuration loaded successfully:', {
+  url: supabaseUrl,
+  keyLength: supabaseAnonKey.length
+});
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 

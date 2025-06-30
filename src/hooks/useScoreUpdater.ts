@@ -6,14 +6,33 @@ export function useScoreUpdater(roundId?: string, onScoreUpdate?: () => void) {
 
   const updateScores = useCallback(async () => {
     try {
+      console.log("Attempting to update scores via Supabase Edge Function...");
+      
+      // Check if we can reach Supabase first
+      try {
+        const healthCheck = await supabase.from("game_rounds").select("count").limit(1);
+        if (healthCheck.error) {
+          throw new Error(`Supabase connection failed: ${healthCheck.error.message}`);
+        }
+      } catch (connectionError) {
+        console.error("Cannot reach Supabase:", connectionError);
+        throw new Error("Unable to connect to Supabase. Please check your environment variables and internet connection.");
+      }
+
       // Call the Supabase function to update current scores
       const { data, error } = await supabase.functions.invoke("update-current-scores", {
         method: "POST",
       });
 
       if (error) {
-        console.error("Error updating scores:", error);
-        return;
+        console.error("Error updating scores via Edge Function:", error);
+        
+        // Provide more helpful error information
+        if (error.message?.includes('Failed to fetch')) {
+          throw new Error("Cannot reach Supabase Edge Functions. Please check your Supabase project configuration and ensure Edge Functions are enabled.");
+        }
+        
+        throw error;
       }
 
       console.log("Scores updated:", data);

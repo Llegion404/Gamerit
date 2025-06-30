@@ -100,11 +100,17 @@ export function useGameData() {
     try {
       console.log("Fetching current rounds...");
       
-      // Add connection test before making requests
-      const connectionTest = await supabase.from("game_rounds").select("count").limit(1);
-      if (connectionTest.error) {
-        console.error("Supabase connection test failed:", connectionTest.error);
-        throw new Error(`Database connection failed: ${connectionTest.error.message}`);
+      // Test Supabase connection with a simple query
+      try {
+        const connectionTest = await supabase.from("game_rounds").select("count").limit(1);
+        if (connectionTest.error) {
+          console.error("Supabase connection test failed:", connectionTest.error);
+          throw new Error(`Database connection failed: ${connectionTest.error.message}`);
+        }
+        console.log("Supabase connection test successful");
+      } catch (connectionError) {
+        console.error("Network connectivity issue:", connectionError);
+        throw new Error(`Network error: Unable to connect to Supabase. Please check your internet connection and environment variables.`);
       }
       
       const { data, error } = await supabase
@@ -130,11 +136,20 @@ export function useGameData() {
       console.error("Error fetching current rounds:", error);
       // Provide more specific error information
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        console.error("Network connectivity issue detected. Please check:");
-        console.error("1. Internet connection");
-        console.error("2. Supabase project status");
-        console.error("3. CORS configuration in Supabase dashboard");
-        console.error("4. Environment variables are correct");
+        const troubleshootingMessage = `
+Network connectivity issue detected. Please check:
+1. Internet connection is working
+2. Environment variables are set correctly in .env.local:
+   - VITE_SUPABASE_URL
+   - VITE_SUPABASE_ANON_KEY
+3. Supabase project is active and accessible
+4. CORS configuration in Supabase dashboard allows your domain
+
+Current configuration:
+- Supabase URL: ${import.meta.env.VITE_SUPABASE_URL || 'NOT SET'}
+- Anon Key: ${import.meta.env.VITE_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET'}`;
+        
+        console.error(troubleshootingMessage);
       }
       setCurrentRounds([]);
       setCurrentRound(null);
