@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { GameRound as GameRoundComponent } from "./GameRound";
 import { HotPotatoBetting } from "./HotPotatoBetting";
+import { PreviousRounds } from "./PreviousRounds";
 import { GameRound as GameRoundType, Player } from "../lib/supabase";
 import { RedditUser } from "../lib/reddit-auth";
 
@@ -152,7 +153,7 @@ export function MultiBattle({ rounds, player, redditUser, onPlaceBet, getUserBet
       {/* Previous Rounds section - only show in classic mode */}
       {battleMode === "classic" && (
         <div className="mt-8 sm:mt-12">
-          <PreviousRounds rounds={previousRounds} />
+          <PreviousRounds rounds={rounds.filter(round => round.status !== 'active')} />
         </div>
       )}
     </div>
