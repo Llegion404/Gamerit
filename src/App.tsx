@@ -21,7 +21,6 @@ import RedditRadio from "./components/RedditRadio";
 import { RedditOracle } from "./components/RedditOracle";
 import { MemeTerminal } from "./components/MemeTerminal";
 import TypingTest from "./components/TypingTest";
-import TypingTest from "./components/TypingTest";
 import { useState as useAppState } from "react";
 
 function App() {
