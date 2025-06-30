@@ -13,13 +13,14 @@ import { useRoundManager } from "./hooks/useRoundManager";
 import { useHotPotatoManager } from "./hooks/useHotPotatoManager";
 import { useProgression } from "./hooks/useProgression"; 
 import { SubredditReigns } from "./components/SubredditReigns";
-import { Loader2 } from "lucide-react";
+import { Loader2, Keyboard } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import Archaeology from "./components/Archaeology";
 import { ComingSoon } from "./components/ComingSoon";
 import RedditRadio from "./components/RedditRadio";
 import { RedditOracle } from "./components/RedditOracle";
 import { MemeTerminal } from "./components/MemeTerminal";
+import TypingTest from "./components/TypingTest";
 import { useState as useAppState } from "react";
 
 function App() {
@@ -224,6 +225,8 @@ function App() {
           />
         )}
 
+        {activeGame === "typing-test" && <TypingTest />}
+
         {activeGame === "progression" && ( 
           <div className="max-w-6xl mx-auto">
             <div className="mb-6">
@@ -250,6 +253,7 @@ function App() {
             <p>• Subreddit Reigns: Master the hivemind of different communities</p>
             <p>• Reddit Radio: Listen to AI-narrated content from your favorite subreddits</p>
             <p>• Reddit Oracle: Ask questions and receive mystical wisdom from random Reddit comments</p>
+            <p>• Typing Test: Test your typing speed with Reddit dad jokes</p>
             <p>• Progression: Level up and unlock achievements as you play</p>
             <p>• Start with 1,000 free Karma Chips • Claim 50 welfare chips daily when broke</p>
           </div>
