@@ -73,7 +73,7 @@ export function useProgression(redditUsername: string | null) {
     needed: number;
     percentage: number;
   } => {
-    if (!progression) return { current: 0, needed: 100, percentage: 0 };
+    if (!progression) return { current: 0, needed: 0, percentage: 0 };
 
     const currentLevelXP = getXPForNextLevel(progression.level - 1);
     const nextLevelXP = getXPForNextLevel(progression.level);

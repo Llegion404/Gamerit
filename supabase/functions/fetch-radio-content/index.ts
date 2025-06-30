@@ -1,9 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 interface RedditPost {
@@ -63,12 +63,12 @@ serve(async (req) => {
   try {
     const { subreddits, player_id } = await req.json();
 
-    console.log("Fetch radio content - Received request:", { 
-      subreddits: subreddits, 
+    console.log("Fetch radio content - Received request:", {
+      subreddits: subreddits,
       player_id: player_id,
       subreddits_type: typeof subreddits,
       is_array: Array.isArray(subreddits),
-      length: subreddits?.length 
+      length: subreddits?.length,
     });
 
     if (!subreddits || !Array.isArray(subreddits) || subreddits.length === 0) {
@@ -76,7 +76,7 @@ serve(async (req) => {
         exists: !!subreddits,
         is_array: Array.isArray(subreddits),
         has_length: subreddits?.length > 0,
-        actual_value: subreddits
+        actual_value: subreddits,
       });
       return new Response(
         JSON.stringify({
@@ -91,14 +91,77 @@ serve(async (req) => {
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 400,
-        }
+        },
       );
     }
+
+    // Get Reddit credentials from environment (same as create-auto-round)
+    const REDDIT_CLIENT_ID = Deno.env.get("REDDIT_CLIENT_ID");
+    const REDDIT_CLIENT_SECRET = Deno.env.get("REDDIT_CLIENT_SECRET");
+
+    if (!REDDIT_CLIENT_ID || !REDDIT_CLIENT_SECRET) {
+      return new Response(
+        JSON.stringify({
+          error: "Reddit credentials not configured",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        },
+      );
+    }
+
+    // Get Reddit access token using client credentials (same as create-auto-round)
+    console.log("Getting Reddit access token using client credentials...");
+    const tokenResponse = await fetch(
+      "https://www.reddit.com/api/v1/access_token",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${btoa(
+            `${REDDIT_CLIENT_ID}:${REDDIT_CLIENT_SECRET}`,
+          )}`,
+          "User-Agent": "KarmaCasino/1.0 by u/Cold_Count_3944",
+        },
+        body: new URLSearchParams({
+          grant_type: "client_credentials",
+        }),
+      },
+    );
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error("Failed to get Reddit access token:", errorText);
+      return new Response(
+        JSON.stringify({
+          error: "Failed to authenticate with Reddit",
+          details: errorText,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        },
+      );
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+    console.log("Successfully obtained Reddit access token");
 
     console.log(`Fetching content from subreddits: ${subreddits.join(", ")}`);
 
     const allContent: RadioContent[] = [];
-    const debugInfo: any = {
+    const debugInfo: {
+      subreddits_processed: {
+        subreddit: string;
+        posts: number;
+        comments: number;
+      }[];
+      total_posts_found: number;
+      total_comments_found: number;
+      errors: string[];
+    } = {
       subreddits_processed: [],
       total_posts_found: 0,
       total_comments_found: 0,
@@ -112,21 +175,27 @@ serve(async (req) => {
       let subredditComments = 0;
 
       try {
-        // Fetch hot posts
-        const postsUrl = `https://www.reddit.com/r/${subreddit}/hot.json?limit=25`;
+        // Fetch hot posts using OAuth Reddit API with client credentials token
+        const postsUrl = `https://oauth.reddit.com/r/${subreddit}/hot?limit=25`;
         console.log(`Fetching from: ${postsUrl}`);
 
         const postsResponse = await fetch(postsUrl, {
           headers: {
-            "User-Agent": "RedditRadio/1.0",
+            Authorization: `Bearer ${accessToken}`,
+            "User-Agent": "KarmaCasino/1.0 by u/Cold_Count_3944",
           },
         });
 
-        console.log(`Response status for r/${subreddit}:`, postsResponse.status);
+        console.log(
+          `Response status for r/${subreddit}:`,
+          postsResponse.status,
+        );
 
         if (postsResponse.ok) {
           const postsData: RedditResponse = await postsResponse.json();
-          console.log(`Found ${postsData.data.children.length} posts in r/${subreddit}`);
+          console.log(
+            `Found ${postsData.data.children.length} posts in r/${subreddit}`,
+          );
 
           for (const item of postsData.data.children) {
             const post = item as RedditPost;
@@ -144,7 +213,11 @@ serve(async (req) => {
 
               // Create content from post title and text
               let text = post.data.title;
-              if (post.data.selftext && post.data.selftext.length > 0 && post.data.selftext !== "[removed]") {
+              if (
+                post.data.selftext &&
+                post.data.selftext.length > 0 &&
+                post.data.selftext !== "[removed]"
+              ) {
                 text += ". " + post.data.selftext.substring(0, 300); // Limit length for TTS
               }
 
@@ -162,12 +235,13 @@ serve(async (req) => {
               if (post.data.num_comments > 10) {
                 try {
                   const commentsResponse = await fetch(
-                    `https://www.reddit.com/r/${subreddit}/comments/${post.data.id}.json?limit=3`,
+                    `https://oauth.reddit.com/r/${subreddit}/comments/${post.data.id}?limit=3`,
                     {
                       headers: {
-                        "User-Agent": "RedditRadio/1.0",
+                        Authorization: `Bearer ${accessToken}`,
+                        "User-Agent": "KarmaCasino/1.0 by u/Cold_Count_3944",
                       },
-                    }
+                    },
                   );
 
                   if (commentsResponse.ok) {
@@ -199,20 +273,27 @@ serve(async (req) => {
                     }
                   }
                 } catch (error) {
-                  console.error(`Error fetching comments for post ${post.data.id}:`, error);
+                  console.error(
+                    `Error fetching comments for post ${post.data.id}:`,
+                    error,
+                  );
                 }
               }
             }
           }
         } else {
-          console.error(`Failed to fetch from r/${subreddit}: ${postsResponse.status}`);
+          console.error(
+            `Failed to fetch from r/${subreddit}: ${postsResponse.status}`,
+          );
         }
       } catch (error) {
         console.error(`Error fetching from r/${subreddit}:`, error);
         debugInfo.errors.push(`r/${subreddit}: ${error.message}`);
       }
 
-      console.log(`Completed r/${subreddit}: ${subredditPosts} posts, ${subredditComments} comments`);
+      console.log(
+        `Completed r/${subreddit}: ${subredditPosts} posts, ${subredditComments} comments`,
+      );
       debugInfo.subreddits_processed.push({
         subreddit,
         posts: subredditPosts,
@@ -238,7 +319,7 @@ serve(async (req) => {
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
-      }
+      },
     );
   } catch (error) {
     console.error("Error fetching radio content:", error);
@@ -250,7 +331,7 @@ serve(async (req) => {
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
-      }
+      },
     );
   }
 });

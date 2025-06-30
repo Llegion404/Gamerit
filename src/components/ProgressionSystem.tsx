@@ -81,12 +81,17 @@ export default function ProgressionSystem({ redditUsername, className = "", comp
   }
 
   return (
-    <div className={`bg-card rounded-xl border border-border shadow-lg p-6 ${className}`}>
+    <div
+      className={`bg-card rounded-xl border border-border shadow-lg p-6 ${className}`}
+    >
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-3xl font-bold text-foreground flex items-center space-x-3">
             <span className="text-2xl">🎮</span>
-            <span>Player Progression</span>
+            <span>
+              Player Progression{" "}
+              <span className="text-sm text-muted-foreground">(Demo)</span>
+            </span>
           </h2>
           <div className="flex items-center space-x-2 bg-gradient-to-r from-primary/15 to-primary/5 text-primary px-5 py-3 rounded-xl font-bold border border-primary/20 shadow-sm">
             <span className="text-xl">⭐</span>
@@ -111,8 +116,12 @@ export default function ProgressionSystem({ redditUsername, className = "", comp
             </div>
           </div>
           <div className="flex justify-between items-center">
-            <div className="text-xs text-muted-foreground font-mono">Total XP: {progression.xp.toLocaleString()}</div>
-            <div className="text-xs text-primary font-semibold">{Math.round(xpProgress.percentage)}% to next level</div>
+            <div className="text-xs text-muted-foreground font-mono">
+              Total XP: {progression.xp.toLocaleString()}
+            </div>
+            <div className="text-xs text-primary font-semibold">
+              {Math.round(xpProgress.percentage)}% to next level
+            </div>
           </div>
         </div>
       </div>
@@ -143,26 +152,35 @@ export default function ProgressionSystem({ redditUsername, className = "", comp
                   <div className="text-3xl">{pa.achievement.icon}</div>
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h5 className="font-semibold text-foreground text-lg">{pa.achievement.name}</h5>
+                      <h5 className="font-semibold text-foreground text-lg">
+                        {pa.achievement.name}
+                      </h5>
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold border ${
                           tierColors[pa.achievement.tier]
                         }`}
                       >
-                        {tierIcons[pa.achievement.tier]} {pa.achievement.tier.toUpperCase()}
+                        {tierIcons[pa.achievement.tier]}{" "}
+                        {pa.achievement.tier.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">{pa.achievement.description}</p>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {pa.achievement.description}
+                    </p>
                     {pa.completed_at && (
                       <p className="text-xs text-green-600 dark:text-green-400 font-medium">
-                        Completed {new Date(pa.completed_at).toLocaleDateString()}
+                        Completed{" "}
+                        {new Date(pa.completed_at).toLocaleDateString()}
                       </p>
                     )}
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-semibold text-green-600 dark:text-green-400 mb-1">✅ Complete</div>
+                    <div className="text-sm font-semibold text-green-600 dark:text-green-400 mb-1">
+                      ✅ Complete
+                    </div>
                     <div className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded border border-border/30">
-                      +{pa.achievement.xp_reward} XP, +{pa.achievement.karma_chips_reward} KC
+                      +{pa.achievement.xp_reward} XP, +
+                      {pa.achievement.karma_chips_reward} KC
                     </div>
                   </div>
                 </div>
@@ -184,19 +202,26 @@ export default function ProgressionSystem({ redditUsername, className = "", comp
                   key={pa.id}
                   className="flex items-center space-x-4 p-5 bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
                 >
-                  <div className="text-3xl opacity-70">{pa.achievement.icon}</div>
+                  <div className="text-3xl opacity-70">
+                    {pa.achievement.icon}
+                  </div>
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h5 className="font-semibold text-foreground text-lg">{pa.achievement.name}</h5>
+                      <h5 className="font-semibold text-foreground text-lg">
+                        {pa.achievement.name}
+                      </h5>
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold border ${
                           tierColors[pa.achievement.tier]
                         }`}
                       >
-                        {tierIcons[pa.achievement.tier]} {pa.achievement.tier.toUpperCase()}
+                        {tierIcons[pa.achievement.tier]}{" "}
+                        {pa.achievement.tier.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-3">{pa.achievement.description}</p>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {pa.achievement.description}
+                    </p>
 
                     {/* Progress Bar */}
                     <div className="space-y-2">
@@ -210,7 +235,11 @@ export default function ProgressionSystem({ redditUsername, className = "", comp
                         <div
                           className="bg-gradient-to-r from-primary to-primary/80 h-2.5 rounded-full transition-all duration-500"
                           style={{
-                            width: `${Math.min((pa.progress / pa.achievement.requirement_value) * 100, 100)}%`,
+                            width: `${Math.min(
+                              (pa.progress / pa.achievement.requirement_value) *
+                                100,
+                              100,
+                            )}%`,
                           }}
                         ></div>
                       </div>
@@ -218,10 +247,14 @@ export default function ProgressionSystem({ redditUsername, className = "", comp
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-semibold text-primary mb-1">
-                      {Math.round((pa.progress / pa.achievement.requirement_value) * 100)}%
+                      {Math.round(
+                        (pa.progress / pa.achievement.requirement_value) * 100,
+                      )}
+                      %
                     </div>
                     <div className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded border border-border/30">
-                      +{pa.achievement.xp_reward} XP, +{pa.achievement.karma_chips_reward} KC
+                      +{pa.achievement.xp_reward} XP, +
+                      {pa.achievement.karma_chips_reward} KC
                     </div>
                   </div>
                 </div>
@@ -235,34 +268,51 @@ export default function ProgressionSystem({ redditUsername, className = "", comp
           <div>
             <h4 className="text-lg font-semibold text-muted-foreground mb-4 flex items-center space-x-2">
               <span>🔒</span>
-              <span>Locked ({achievements.length - playerAchievements.length})</span>
+              <span>
+                Locked ({achievements.length - playerAchievements.length})
+              </span>
             </h4>
             <div className="space-y-4">
               {achievements
-                .filter((achievement) => !playerAchievements.some((pa) => pa.achievement.id === achievement.id))
+                .filter(
+                  (achievement) =>
+                    !playerAchievements.some(
+                      (pa) => pa.achievement.id === achievement.id,
+                    ),
+                )
                 .map((achievement) => (
                   <div
                     key={achievement.id}
                     className="flex items-center space-x-4 p-5 bg-muted/20 border border-border/60 rounded-xl opacity-70 hover:opacity-85 transition-opacity duration-200"
                   >
-                    <div className="text-3xl opacity-40">{achievement.icon}</div>
+                    <div className="text-3xl opacity-40">
+                      {achievement.icon}
+                    </div>
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <h5 className="font-semibold text-muted-foreground text-lg">{achievement.name}</h5>
+                        <h5 className="font-semibold text-muted-foreground text-lg">
+                          {achievement.name}
+                        </h5>
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-semibold border opacity-60 ${
                             tierColors[achievement.tier]
                           }`}
                         >
-                          {tierIcons[achievement.tier]} {achievement.tier.toUpperCase()}
+                          {tierIcons[achievement.tier]}{" "}
+                          {achievement.tier.toUpperCase()}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground">{achievement.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {achievement.description}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-semibold text-muted-foreground mb-1">🔒 Locked</div>
+                      <div className="text-sm font-semibold text-muted-foreground mb-1">
+                        🔒 Locked
+                      </div>
                       <div className="text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded border border-border/30">
-                        +{achievement.xp_reward} XP, +{achievement.karma_chips_reward} KC
+                        +{achievement.xp_reward} XP, +
+                        {achievement.karma_chips_reward} KC
                       </div>
                     </div>
                   </div>

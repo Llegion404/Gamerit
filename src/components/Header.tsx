@@ -1,4 +1,20 @@
-import { Trophy, User, LogOut, Gift, Sun, Moon, Menu, X, Target, TrendingUp, Search, SquareDashedBottomCode, Timer, Italic as Crystal, Crown, Keyboard } from "lucide-react";
+import {
+  Trophy,
+  User,
+  LogOut,
+  Gift,
+  Sun,
+  Moon,
+  Menu,
+  X,
+  Target,
+  TrendingUp,
+  Search,
+  SquareDashedBottomCode,
+  Italic as Crystal,
+  Crown,
+  Keyboard,
+} from "lucide-react";
 import { useState } from "react";
 import { Player } from "../lib/supabase";
 import { RedditUser } from "../lib/reddit-auth";
@@ -20,14 +36,34 @@ interface HeaderProps {
 const games = [
   { id: "reddit-battles", name: "Reddit Battles", icon: Target, active: true },
   { id: "meme-market", name: "Meme Terminal", icon: TrendingUp, active: true },
-  { id: "subreddit-reigns", name: "Subreddit Reigns", icon: Crown, active: true },
+  {
+    id: "subreddit-reigns",
+    name: "Subreddit Reigns",
+    icon: Crown,
+    active: true,
+  },
   { id: "archaeology", name: "Archaeology", icon: Search, active: true },
   { id: "reddit-oracle", name: "Reddit Oracle", icon: Crystal, active: true },
-  { id: "reddit-radio", name: "Reddit Radio", icon: SquareDashedBottomCode, active: true },
-  { id: "typing-test", name: "Typing Test", icon: Keyboard, active: true },
-  { id: "typing-test", name: "Typing Test", icon: Keyboard, active: true },
+  {
+    id: "reddit-radio",
+    name: "Reddit Radio",
+    icon: SquareDashedBottomCode,
+    active: true,
+  },
+  {
+    id: "typing-test",
+    name: "Dad Types 🚧",
+    icon: Keyboard,
+    active: true,
+    status: "reconstruction",
+  },
   { id: "progression", name: "Progression", icon: Trophy, active: true },
-  { id: "coming-soon", name: "Coming soon", icon: SquareDashedBottomCode, active: false },
+  {
+    id: "coming-soon",
+    name: "Coming soon",
+    icon: SquareDashedBottomCode,
+    active: false,
+  },
 ];
 
 export function Header({
@@ -53,11 +89,17 @@ export function Header({
             {/* Logo */}
             <div className="flex items-center space-x-3">
               <div className="hidden sm:block">
-                <h1 className="text-xl font-semibold tracking-tight">Gamerit</h1>
-                <p className="text-sm text-muted-foreground">Reddit Gaming Platform</p>
+                <h1 className="text-xl font-semibold tracking-tight">
+                  Gamerit
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Reddit Gaming Platform
+                </p>
               </div>
               <div className="sm:hidden">
-                <h1 className="text-lg font-semibold tracking-tight">Gamerit</h1>
+                <h1 className="text-lg font-semibold tracking-tight">
+                  Gamerit
+                </h1>
               </div>
             </div>
 
@@ -69,20 +111,32 @@ export function Header({
                 className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-accent"
                 aria-label="Toggle theme"
               >
-                {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                {theme === "dark" ? (
+                  <Sun className="w-4 h-4" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
               </button>
 
               {player && redditUser ? (
                 <>
                   {/* Progression Display (Compact) */}
-                  <ProgressionSystem redditUsername={redditUser.name} compact={true} className="hidden lg:flex" />
+                  <ProgressionSystem
+                    redditUsername={redditUser.name}
+                    compact={true}
+                    className="hidden lg:flex"
+                  />
 
                   <div className="bg-secondary border border-border rounded-lg px-3 py-1.5">
                     <div className="flex items-center space-x-2">
                       <Trophy className="w-4 h-4 text-primary" />
-                      <span className="font-medium">{player.points.toLocaleString()}</span>
+                      <span className="font-medium">
+                        {player.points.toLocaleString()}
+                      </span>
                     </div>
-                    <div className="text-xs text-muted-foreground">Karma Chips</div>
+                    <div className="text-xs text-muted-foreground">
+                      Karma Chips
+                    </div>
                   </div>
 
                   {canClaimWelfare && (
@@ -131,7 +185,11 @@ export function Header({
                 className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-accent"
                 aria-label="Toggle theme"
               >
-                {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                {theme === "dark" ? (
+                  <Sun className="w-4 h-4" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
               </button>
 
               <button
@@ -139,7 +197,11 @@ export function Header({
                 className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-accent"
                 aria-label="Toggle menu"
               >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                {mobileMenuOpen ? (
+                  <X className="w-5 h-5" />
+                ) : (
+                  <Menu className="w-5 h-5" />
+                )}
               </button>
             </div>
           </div>
@@ -160,11 +222,15 @@ export function Header({
                               className="w-6 h-6 rounded-full border border-border"
                             />
                           )}
-                          <span className="font-medium">u/{redditUser.name}</span>
+                          <span className="font-medium">
+                            u/{redditUser.name}
+                          </span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Trophy className="w-4 h-4 text-primary" />
-                          <span className="font-medium">{player.points.toLocaleString()}</span>
+                          <span className="font-medium">
+                            {player.points.toLocaleString()}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -216,7 +282,11 @@ export function Header({
           <div className="flex items-center h-12 overflow-x-auto scrollbar-hide gap-1">
             {games.map((game) => {
               const IconComponent = game.icon;
-              const isDisabled = isOracleConsulting && activeGame === "reddit-oracle" && game.id !== "reddit-oracle";
+              const isDisabled =
+                isOracleConsulting &&
+                activeGame === "reddit-oracle" &&
+                game.id !== "reddit-oracle";
+              const isUnderReconstruction = game.status === "reconstruction";
               return (
                 <button
                   key={game.id}
@@ -227,12 +297,20 @@ export function Header({
                     ${
                       activeGame === game.id
                         ? "text-primary border-b-2 border-primary"
-                        : isDisabled 
+                        : isDisabled
                         ? "text-muted-foreground/50"
+                        : isUnderReconstruction
+                        ? "text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300"
                         : "text-muted-foreground hover:text-foreground"
                     }
                   `}
-                  title={isDisabled ? "Oracle is consulting - please wait" : undefined}
+                  title={
+                    isDisabled
+                      ? "Oracle is consulting - please wait"
+                      : isUnderReconstruction
+                      ? "Under reconstruction - coming back soon!"
+                      : undefined
+                  }
                 >
                   <IconComponent className="w-4 h-4" />
                   <span>{game.name}</span>

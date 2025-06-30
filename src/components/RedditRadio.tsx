@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, SkipForward, Volume2, VolumeX, Plus, X, Radio, Loader2, Clock, Users } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { searchSubreddits as searchRedditAPI, type SubredditSuggestion } from "../lib/reddit-api";
+import { redditAuth } from "../lib/reddit-auth";
 import { useAuth } from "../hooks/useAuth";
 import toast from "react-hot-toast";
 
@@ -180,6 +181,37 @@ export function RedditRadio() {
   };
 
   useEffect(() => {
+    // Handle Reddit OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+    const state = urlParams.get("state");
+
+    if (code && state) {
+      console.log("Handling Reddit OAuth callback");
+      redditAuth
+        .handleCallback(code, state)
+        .then((user) => {
+          console.log("Reddit authentication successful:", user);
+          toast.success(`Successfully connected to Reddit as u/${user.name}`);
+          // Clean up URL
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
+        })
+        .catch((error) => {
+          console.error("Reddit authentication failed:", error);
+          toast.error(`Reddit authentication failed: ${error.message}`);
+          // Clean up URL
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
+        });
+    }
+
     loadStations();
     loadVoices();
   }, [loadStations, loadVoices]);
@@ -267,14 +299,35 @@ export function RedditRadio() {
     setActiveStation(station);
 
     try {
+      // Check if user is authenticated with Reddit
+      if (!redditAuth.isAuthenticated()) {
+        toast.error(
+          "Please authenticate with Reddit first to use Reddit Radio",
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Get the Reddit access token
+      const accessToken = localStorage.getItem("reddit_access_token");
+      if (!accessToken) {
+        toast.error("Reddit authentication required. Please log in to Reddit.");
+        setLoading(false);
+        return;
+      }
+
       // Fetch content from Reddit for this station
       console.log("Fetching content for subreddits:", station.subreddits);
-      const { data, error } = await supabase.functions.invoke("fetch-radio-content", {
-        body: {
-          subreddits: station.subreddits,
-          player_id: player?.id,
+      const { data, error } = await supabase.functions.invoke(
+        "fetch-radio-content",
+        {
+          body: {
+            subreddits: station.subreddits,
+            player_id: player?.id,
+            access_token: accessToken,
+          },
         },
-      });
+      );
 
       console.log("Fetch content response:", { data, error });
 
@@ -398,7 +451,57 @@ export function RedditRadio() {
         <div className="bg-card rounded-lg border p-8 text-center">
           <Radio className="w-16 h-16 mx-auto text-primary mb-4" />
           <h2 className="text-2xl font-bold mb-4">Reddit Radio</h2>
-          <p className="text-muted-foreground">Please log in to create and listen to personalized radio stations.</p>
+          <p className="text-muted-foreground mb-6">
+            Please log in to create and listen to personalized radio stations.
+          </p>
+          {!redditUser && (
+            <div className="bg-secondary/50 rounded-lg p-4 mb-4">
+              <p className="text-sm text-muted-foreground mb-3">
+                Reddit Radio requires Reddit authentication to fetch content
+                from your favorite subreddits.
+              </p>
+              <button
+                onClick={() => {
+                  const authUrl = redditAuth.getAuthUrl();
+                  window.location.href = authUrl;
+                }}
+                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Connect with Reddit
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user needs Reddit authentication even if they have a player account
+  if (!redditAuth.isAuthenticated()) {
+    return (
+      <div className="max-w-4xl mx-auto p-3 sm:p-6">
+        <div className="bg-card rounded-lg border p-8 text-center">
+          <Radio className="w-16 h-16 mx-auto text-primary mb-4" />
+          <h2 className="text-2xl font-bold mb-4">Reddit Radio</h2>
+          <p className="text-muted-foreground mb-6">
+            Connect your Reddit account to start creating and listening to
+            personalized radio stations.
+          </p>
+          <div className="bg-secondary/50 rounded-lg p-4 mb-4">
+            <p className="text-sm text-muted-foreground mb-3">
+              Reddit Radio fetches high-quality content from your favorite
+              subreddits and converts them to audio using AI voices.
+            </p>
+            <button
+              onClick={() => {
+                const authUrl = redditAuth.getAuthUrl();
+                window.location.href = authUrl;
+              }}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              Connect with Reddit
+            </button>
+          </div>
         </div>
       </div>
     );
