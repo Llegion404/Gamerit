@@ -33,6 +33,45 @@ interface DadJoke {
   subreddit: string;
 }
 
+// Fallback dad jokes in case API returns nothing
+const fallbackJokes: DadJoke[] = [
+  {
+    id: "fallback1",
+    joke: "Why don't scientists trust atoms? Because they make up everything!",
+    score: 1000,
+    author: "fallback",
+    subreddit: "dadjokes"
+  },
+  {
+    id: "fallback2", 
+    joke: "I told my wife she was drawing her eyebrows too high. She looked surprised.",
+    score: 950,
+    author: "fallback",
+    subreddit: "dadjokes"
+  },
+  {
+    id: "fallback3",
+    joke: "What do you call a fake noodle? An impasta!",
+    score: 900,
+    author: "fallback",
+    subreddit: "dadjokes"
+  },
+  {
+    id: "fallback4",
+    joke: "Why did the scarecrow win an award? He was outstanding in his field!",
+    score: 850,
+    author: "fallback",
+    subreddit: "dadjokes"
+  },
+  {
+    id: "fallback5",
+    joke: "I used to hate facial hair, but then it grew on me.",
+    score: 800,
+    author: "fallback",
+    subreddit: "dadjokes"
+  }
+];
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -45,7 +84,19 @@ serve(async (req) => {
     const REDDIT_CLIENT_SECRET = Deno.env.get("REDDIT_CLIENT_SECRET");
 
     if (!REDDIT_CLIENT_ID || !REDDIT_CLIENT_SECRET) {
-      throw new Error("Reddit API credentials not configured");
+      console.log("Reddit API credentials not configured, using fallback jokes");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          jokes: fallbackJokes,
+          count: fallbackJokes.length,
+          source: "fallback"
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
     }
 
     const tokenResponse = await fetch("https://www.reddit.com/api/v1/access_token", {
@@ -61,7 +112,19 @@ serve(async (req) => {
     });
 
     if (!tokenResponse.ok) {
-      throw new Error("Failed to get Reddit access token");
+      console.log("Failed to get Reddit access token, using fallback jokes");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          jokes: fallbackJokes,
+          count: fallbackJokes.length,
+          source: "fallback"
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
     }
 
     const tokenData = await tokenResponse.json();
@@ -92,12 +155,12 @@ serve(async (req) => {
               // Skip NSFW content
               if (post.data.over_18) continue;
               
-              // Skip posts without titles or with very short titles
-              if (!post.data.title || post.data.title.length < 10) continue;
+              // Skip posts without titles
+              if (!post.data.title) continue;
               
               // Skip posts with [deleted] or [removed]
               if (post.data.title.includes("[deleted]") || post.data.title.includes("[removed]")) continue;
-              if (post.data.selftext.includes("[deleted]") || post.data.selftext.includes("[removed]")) continue;
+              if (post.data.selftext && (post.data.selftext.includes("[deleted]") || post.data.selftext.includes("[removed]"))) continue;
               
               // Extract the joke - combine title and selftext if needed
               let jokeText = post.data.title;
@@ -107,11 +170,9 @@ serve(async (req) => {
                 jokeText += " " + post.data.selftext;
               }
               
-              // Skip very long jokes (hard to type)
-              if (jokeText.length > 200) continue;
-              
-              // Skip very short jokes
-              if (jokeText.length < 20) continue;
+              // Relaxed filtering - allow shorter jokes and longer ones
+              if (jokeText.length < 10) continue; // Very short jokes
+              if (jokeText.length > 300) continue; // Very long jokes
               
               // Add to jokes collection
               allJokes.push({
@@ -130,15 +191,22 @@ serve(async (req) => {
     }
 
     // Sort by score (highest first) and take top 20
-    const sortedJokes = allJokes
+    let sortedJokes = allJokes
       .sort((a, b) => b.score - a.score)
       .slice(0, 20);
+
+    // If no jokes found, use fallback
+    if (sortedJokes.length === 0) {
+      console.log("No jokes found from Reddit, using fallback jokes");
+      sortedJokes = fallbackJokes;
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         jokes: sortedJokes,
         count: sortedJokes.length,
+        source: allJokes.length > 0 ? "reddit" : "fallback"
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -147,14 +215,18 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error fetching dad jokes:", error);
+    // Return fallback jokes instead of error
     return new Response(
       JSON.stringify({
-        success: false,
-        error: error.message || "Failed to fetch dad jokes",
+        success: true,
+        jokes: fallbackJokes,
+        count: fallbackJokes.length,
+        source: "fallback",
+        note: "Using fallback due to API error"
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
+        status: 200,
       }
     );
   }
